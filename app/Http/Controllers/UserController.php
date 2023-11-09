@@ -120,26 +120,28 @@ class UserController extends Controller
             return $this->successResponse($contracts);
     }
 
-    public function editUser(UserEditRequest $request,$id)
+    public function editUser(UserEditRequest $request, $id)
     {
-        // $this->authorize('update', User::class);
         $user = User::findOrFail($id);
-
-        $user->update($request->validated());
-
-        $user->position_id = $request->position_id;
-        $user->team_id = $request->team_id;
-        $user->save();
     
-        $teamUser = $user->teamUser;
-        $teamUser->team_id = $request->team_id;
-        $teamUser->save();
+        $user->update($request->except(['position_id', 'team_id'])); // Mise à jour des champs autres que position_id et team_id
     
-        $currentPosition = $user->position();
-
-        return $currentPosition;
+        $user->positions()->update([
+            'position_id' => $request->position_id,
+            'start_date' => now(),
+        ]);
     
-        if ($currentPosition && $currentPosition->position_id != $request->position_id) {
+        $user->teams()->update([
+            'team_id' => $request->team_id,
+            'integration_date' => now(),
+        ]);
+    
+        $user->load('positions', 'teams');
+    
+        $currentPosition = $user->positions();
+        // return $currentPosition->position_id;
+    
+        if ($currentPosition->get() && $currentPosition->position_id != $request->position_id) {
             $currentPosition->endDate = now();
             $currentPosition->save();
     
@@ -151,13 +153,8 @@ class UserController extends Controller
             $user->positions()->save($newPosition);
         }
     
-        $user->load('positions', 'teams');
-    
-        return response()->json([
-            'user' => $user,
-            'success' => true,
-        ], 200);
-    }
+        return $this->successResponse($user, 200);
+    }    
 
     // public function destroyUser($id)
     // {
