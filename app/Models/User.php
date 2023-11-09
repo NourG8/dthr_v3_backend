@@ -25,7 +25,7 @@ class User extends Authenticatable
 
     public function contracts()
     {
-        return $this->hasMany(UserContract::class);
+        return $this->hasMany(UserContract::class, 'user_id', 'id');
     }
 
     public function conges()
