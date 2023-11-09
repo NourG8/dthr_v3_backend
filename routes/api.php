@@ -23,4 +23,7 @@ Route::get("users", [UserController::class, 'getAllUsers']);
 Route::get("users/manager", [UserController::class, 'getAllUserManager']);
 Route::get("user/list/archive", [UserController::class, 'getArchivedUser']);
 Route::post("users", [UserController::class, 'AddUser']);
+Route::put("users/{id}", [UserController::class, 'editUser']);
 Route::put("user_contract/delete/{id}", [UserController::class, 'DeleteContractsUser']);
+Route::get("users/model/{id}", [UserController::class, 'getContractsUserModel']);
+Route::get("users/contract/{id}", [UserController::class, 'getContractsUserSigned']);

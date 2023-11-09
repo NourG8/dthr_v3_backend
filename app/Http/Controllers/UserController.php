@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\Position;
 use App\Models\UserContract;
 use App\Http\Requests\Users\UserRequest;
+use App\Http\Requests\Users\UserEditRequest;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use DB;
@@ -91,101 +92,72 @@ class UserController extends Controller
         $userContract = UserContract::findOrFail($id);
         $userContract->update(['is_deleted' => 1]);
 
-        $this->successResponse($userContract);
+       return  $this->successResponse(['message' => 'user contract deleted successfully']);
     }
 
     public function getContractsUserModel($id)
     {
-        $users = DB::table('user_contracts')
-        // ->leftJoin('user_contracts', 'user_contracts.user_id', '=', 'users.id')
-        ->leftJoin('contracts', 'user_contracts.contract_id', '=', 'contracts.id')
-        ->select('user_contracts.*','contracts.type','contracts.file')
-        ->where([['user_contracts.user_id', '=', $id],
-        ['user_contracts.OnlyPhysical', '=', 0],
-        ['user_contracts.is_deleted', '=', 0]])
-        ->get();
-        return response()->json($users);
+        $user = User::findOrFail($id);
+        $contracts = $user->contracts()
+            ->where('only_physical', 0)
+            ->where('is_deleted', 0)
+            ->get();
+    
+        return $this->successResponse($contracts);
     }
 
-    // public function getContractsUserSigned($id)
-    // {
-    //     $users = DB::table('user_contracts')
-    //     // ->leftJoin('user_contracts', 'user_contracts.user_id', '=', 'users.id')
-    //     ->leftJoin('contracts', 'user_contracts.contract_id', '=', 'contracts.id')
-    //     ->select('user_contracts.*','contracts.type','contracts.file')
-    //     ->where([['user_contracts.user_id', '=', $id],
-    //             ['user_contracts.fileContract', '!=', null],
-    //             ['user_contracts.OnlyPhysical', '=', 1],
-    //             ['user_contracts.is_deleted', '=', 0]])
-    //     ->get();
-    //     return response()->json($users);
-    // }
+    public function getContractsUserSigned($id)
+    {
+        $user = User::findOrFail($id);
+        $contracts = $user->contracts()
+            ->where('file_contract', '!=', null)
+            ->where('only_physical', 1)
+            ->where('is_deleted', 0)
+            ->with(['contract' => function ($query) {
+                $query->select('id', 'type', 'file');
+            }])->get();
 
-    // public function editUser(Request $request,$id)
-    // {
-    //     $this->authorize('update', User::class);
-    //     $user = User::findOrFail($id);
-    //     $user->lastName= $request->lastName;
-    //     $user->firstName= $request->firstName;
-    //     $user->sex= $request->sex;
-    //     $user->email = $request->email;
-    //     $user->emailProf = $request->emailProf;
-    //     $user->address = $request->address;
-    //     $user->dateBirth =$request->dateBirth;
-    //     $user->placeBirth =$request->placeBirth;
-    //     $user->nationality =$request->nationality;
-    //     $user->phone = $request->phone;
-    //     $user->pwd_reset_admin = 0;
-    //     $user->phoneEmergency = $request->phoneEmergency;
-    //     $user->FamilySituation = $request->FamilySituation;
-    //     $user->nbChildren = $request->nbChildren;
-    //     $user->levelStudies = $request->levelStudies;
-    //     $user->specialty = $request->specialty;
-    //     $user->matricule = $request->matricule;
-    //     $user->carteId = $request->carteId;
-    //     // $user->sivp = $request->sivp;
-    //     // $user->durationSivp = $request->durationSivp;
-    //     $user->cin = $request->cin;
-    //     $user->deliveryDateCin = $request->deliveryDateCin;
-    //     $user->deliveryPlaceCin = $request->deliveryPlaceCin;
-    //     $user->numPassport = $request->numPassport;
-    //     $user->motivation = $request->motivation;
-    //     $user->integrationDate = $request->integrationDate;
-    //     $password = Str::random(8);
-    //     $user->password = Hash::make($password);
-    //     $user->regimeSocial =  $request->regimeSocial;
-    //     $user->text = $request->text;
-    //     $user->save();
+            return $this->successResponse($contracts);
+    }
 
-    //     $user->department_id = $request->department_id;
-    //     $user->position_id = $request->position_id;
-    //     $user->team_id =  $request->team_id;
+    public function editUser(UserEditRequest $request,$id)
+    {
+        // $this->authorize('update', User::class);
+        $user = User::findOrFail($id);
 
-    //     $team_user = TeamUser::where([
-    //         ['user_id',$user->id],
-    //      ])->get();
-    //     $team_user[0]->team_id= $user->team_id ;
-    //     $team_user[0]->save();
+        $user->update($request->validated());
 
-    //     $position_user = PositionUser::where([
-    //                                             ['user_id',$user->id],
-    //                                             ['endDate', "=", null]
-    //                                         ])->get();
-    //     if($position_user[0]->position_id != $request->input('position_id')){
-    //         $position_user[0]->endDate = now();
-    //         $position_user[0]->save();
+        $user->position_id = $request->position_id;
+        $user->team_id = $request->team_id;
+        $user->save();
+    
+        $teamUser = $user->teamUser;
+        $teamUser->team_id = $request->team_id;
+        $teamUser->save();
+    
+        $currentPosition = $user->position();
 
-    //         $new_position_user = new PositionUser();
-    //         $new_position_user->position_id = $request->input('position_id');
-    //         $new_position_user->startDate = now();
-    //         $new_position_user->user_id = $user->id;
-    //         $new_position_user->save();
-    //     }
-    //     return response()->json([
-    //         'user' => $user,
-    //         'success' => true
-    //     ], 200);
-    // }
+        return $currentPosition;
+    
+        if ($currentPosition && $currentPosition->position_id != $request->position_id) {
+            $currentPosition->endDate = now();
+            $currentPosition->save();
+    
+            $newPosition = new PositionUser([
+                'position_id' => $request->position_id,
+                'startDate' => now(),
+            ]);
+    
+            $user->positions()->save($newPosition);
+        }
+    
+        $user->load('positions', 'teams');
+    
+        return response()->json([
+            'user' => $user,
+            'success' => true,
+        ], 200);
+    }
 
     // public function destroyUser($id)
     // {
