@@ -10,10 +10,12 @@ use App\Models\Position;
 use App\Models\UserContract;
 use App\Http\Requests\Users\UserRequest;
 use App\Http\Requests\Users\UserEditRequest;
+use App\Http\Requests\Contracts\OldContractRequest;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Arr;
 
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\File;
 use PDF;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
+use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
@@ -58,6 +61,7 @@ class UserController extends Controller
             $query->where('end_date', '=', null);
         })
         ->get();
+
         return $this->successResponse($users);
     }
 
@@ -85,7 +89,6 @@ class UserController extends Controller
 
         return $this->successResponse($user , 201);
     }
-
 
     public function DeleteContractsUser($id)
     {
@@ -120,91 +123,87 @@ class UserController extends Controller
             return $this->successResponse($contracts);
     }
 
-    public function editUser(UserEditRequest $request,$id)
+    public function editUser(UserEditRequest $request, $id)
     {
-        // $this->authorize('update', User::class);
         $user = User::findOrFail($id);
 
         $user->update($request->validated());
 
-        $user->position_id = $request->position_id;
-        $user->team_id = $request->team_id;
-        $user->save();
-    
-        $teamUser = $user->teamUser;
-        $teamUser->team_id = $request->team_id;
-        $teamUser->save();
-    
-        $currentPosition = $user->position();
+        $existingPositions = $user->positions->where("end_date" , "==" , null)->pluck('position_id')->toArray();
 
-        return $currentPosition;
+        $newPositions = array_values(array_diff($request->input('position_id', []), $existingPositions));
     
-        if ($currentPosition && $currentPosition->position_id != $request->position_id) {
-            $currentPosition->endDate = now();
-            $currentPosition->save();
-    
-            $newPosition = new PositionUser([
-                'position_id' => $request->position_id,
-                'startDate' => now(),
-            ]);
-    
-            $user->positions()->save($newPosition);
+        $positionsToUpdate = array_values(array_diff($existingPositions, $request->input('position_id', [])));
+
+        $user->positions()->whereIn('position_id', $positionsToUpdate)->update(['end_date' => now()]);
+
+        foreach ($newPositions as $positionId) {
+
+            if (!$user->positions->where("end_date","===",null)->contains('position_id', $positionId)) {
+                    $user->positions()->create([
+                        'position_id' => $positionId,
+                        'start_date' => now(),
+                    ]);
+            }
         }
-    
-        $user->load('positions', 'teams');
-    
-        return response()->json([
-            'user' => $user,
-            'success' => true,
-        ], 200);
+
+        $existingTeams = $user->teams->where("is_deleted", 0)->pluck('team_id')->toArray();
+
+        $newTeams = array_values(array_diff($request->input('team_id', []), $existingTeams));
+        $teamsToUpdate = array_values(array_diff($existingTeams, $request->input('team_id', [])));
+
+        // Mise à jour des équipes à mettre à jour avec is_deleted à 1
+        $user->teams()->whereIn('team_id', $teamsToUpdate)->update(['is_deleted' => 1]);
+
+        // Création de nouvelles équipes
+        foreach ($newTeams as $teamId) {
+            if (!$user->teams->where("is_deleted", 0)->contains('team_id', $teamId)) {
+                    $user->teams()->create([
+                        'team_id' => $teamId,
+                        'is_leader' => 0,
+                        'integration_date' => now(),
+                    ]);
+            }
+        }
+                
+        return $this->successResponse( $user->load('positions', 'teams'));
     }
 
-    // public function destroyUser($id)
-    // {
-    //     $this->authorize('update', User::class);
-    //     $u = User::findOrFail($id);
-    //     $u->is_deleted = 1;
-    //     $u->save();
-    //     return response()->json([
-    //         'user' => $u,
-    //         'success' => true
-    //     ], 200);
-    // }
+    public function destroyUser($id)
+    {
+        // $this->authorize('update', User::class);
+        $user = User::findOrFail($id);
+        $user->is_deleted = 1;
+        $user->save();
 
-    // public function getTeams_Department($id_dep)
-    // {
-    //     $teams = Team::where([
-    //         ['department_id',$id_dep], ['status','active']
-    //     ])->get();
-    //     return response()->json([
-    //         'teams' => $teams,
-    //         'success' => true
-    //     ], 200);
-    // }
+        return $this->successResponse( $user->load('positions', 'teams'));
+    }
 
-    // public function archiveUser($id)
-    // {
-    //     // $this->authorize('archive', User::class);
-    //     $user = User::findOrFail($id);
-    //     $user->status = "inactive";
-    //     $user->save();
-    //     return response()->json([
-    //         'user' => $user,
-    //         'success' => true
-    //     ], 200);
-    // }
+    public function getTeams_Department(Request $request)
+    {
+        $teams = Team::where([['status','active']])
+        ->whereIn(  'department_id',$request->ids_dep)->get();
+        
+        return $this->successResponse( $teams );
+    }
 
-    // public function resetUser($id)
-    // {
-    //     // $this->authorize('archive', User::class);
-    //     $user = User::findOrFail($id);
-    //     $user->status = "active";
-    //     $user->save();
-    //     return response()->json([
-    //         'user' => $user,
-    //         'success' => true
-    //     ], 200);
-    // }
+    public function archiveUser($id)
+    {
+        // $this->authorize('archive', User::class);
+        $user = User::findOrFail($id);
+        $user->update(['status' => 'inactive']);
+
+        return $this->successResponse( $user );
+    }
+
+    public function resetUser($id)
+    {
+        // $this->authorize('archive', User::class);
+        $user = User::findOrFail($id);
+        $user->update(['status' => 'active']);
+
+        return $this->successResponse( $user );
+    }
 
     // public function AffectContractsToUser(Request $request)
     // {
@@ -479,24 +478,24 @@ class UserController extends Controller
     //     ], 200);
     // }
 
-    // public function ChangePhotoProfil(Request $request,$id)
-    // {
-    //     $extension = explode('/', explode(':', substr($request->input('base64string'), 0, strpos($request->input('base64string'), ';')))[1])[1];
-    //     $replace = substr($request->input('base64string'), 0, strpos($request->input('base64string'), ',')+1);
-    //     $file = str_replace($replace, '', $request->input('base64string'));
-    //     $decodedFile = str_replace(' ', '+', $file);
-    //     $path =  Str::random(5) . time() .'.'. $extension;
+    public function ChangePhotoProfil(Request $request,$id)
+    {
+        $extension = explode('/', explode(':', substr($request->input('base64string'), 0, strpos($request->input('base64string'), ';')))[1])[1];
+        $replace = substr($request->input('base64string'), 0, strpos($request->input('base64string'), ',')+1);
+        $file = str_replace($replace, '', $request->input('base64string'));
+        $decodedFile = str_replace(' ', '+', $file);
+        $path =  Str::random(5) . time() .'.'. $extension;
 
-    //     Storage::disk('public')->put("photo/".$path, base64_decode($decodedFile));
+        Storage::disk('public')->put("photo/".$path, base64_decode($decodedFile));
 
-    //     $user = user::findOrFail($id);
-    //     $user->image = $path;
-    //     $user->save();
+        $user = user::findOrFail($id);
+        $user->image = $path;
+        $user->save();
 
-    //     return [
-    //         'user'=> $user,
-    //     ];
-    // }
+        return [
+            'user'=> $user,
+        ];
+    }
 
     // public function getPositionUser($id_pos)
     // {
@@ -509,78 +508,51 @@ class UserController extends Controller
     //      return response()->json($user);
     // }
 
-    // private function ValidationData(){
-    //     return [
-    //         'name' => ['required', 'unique:users', 'max:255'],
-    //         'email' => ['required', 'unique:users', 'max:255'],
-    //         'password' =>'required',
-    //     ];
-    // }
 
-    // function uploadOldContract(Request $request,$id_user){
-    //     // 1er methode to upload file
-    //     $validatedData = $request->validate([
-    //         'file' => 'required',
-    //        ]);
+    function uploadOldContract(OldContractRequest $request,$id_user)
+    {
+        $name = "";
 
-    //        $name = "";
-    //        $end_date = null;
+        if($request->file('file')){
+             $name = explode(".",$request->file('file')->getClientOriginalName())[0] ."_". Str::random(4) .".". explode(".",$request->file('file')->getClientOriginalName())[1];
+             $path = $request->file('file')->move('old_contract',$name);
+        }
 
-    //     if($request->input('endDate')){
-    //         $end_date = $request->input('endDate');
-    //     }
+        $user_contract = new UserContract();
 
-    //     if($request->file('file')){
-    //         // explode(", ", $string);
-    //          $name = explode(".",$request->file('file')->getClientOriginalName())[0] ."_". Str::random(4) .".". explode(".",$request->file('file')->getClientOriginalName())[1];
-    //          $path = $request->file('file')->move('old_contract',$name);
-    //     }
+        if($name != ""){
+            $user_contract->file_contract = $name;
+        }
 
-    //     $user_contract = new UserContract();
+        $user_contract->file_contract = $name;
+        $user_contract->contract_id = $request->input('contract_id');
+        $user_contract->start_date = $request->input('start_date');
+        $user_contract->status = "Signed";
+        $user_contract->date_status = now();
+        $user_contract->is_deleted = 0;
+        $user_contract->only_physical = 1;
+        $user_contract->end_date = $request->input('end_date');
+        $user_contract->user_id = $id_user;
+        $user_contract->save();
 
-    //     if($name != ""){
-    //         $user_contract->fileContract = $name;
-    //     }
+        return $this->successResponse( $user_contract );
+    }
 
-    //     $user_contract->contract_id = $request->input('contract_id');
-    //     $user_contract->startDate = $request->input('startDate');
-    //     $user_contract->status = "Signed";
-    //     $date_now = Carbon::now()->toDateTimeString();
-    //     $user_contract->date_status = $date_now;
-    //     $user_contract->is_deleted = 0;
-    //     $user_contract->OnlyPhysical =1;
-    //     $user_contract->endDate = $end_date;
-    //     $user_contract->user_id = $id_user;
-    //     $user_contract->save();
-
-    //     return response()->json([
-    //         'user_contract' => $user_contract,
-    //         'success' => true
-    //     ], 200);
-    // }
-
-    // function DownloadOldContract($id_user_contract){
-    //     // 1er methode to download file
-    //     $user_contract = UserContract::findOrFail($id_user_contract);
-    //     $file_name_1 = "old_contract\\" .$user_contract->fileContract;
-    //     $file_name_2 = "signed_contract\\" .$user_contract->fileContract;
-    //     $path_1 =  public_path($file_name_1);
-    //     $path_2 =  public_path($file_name_2);
-    //     if (file_exists($path_1)){
-    //         return response()->download($path_1);
-    //     }
-    //     if (file_exists($path_2)){
-    //         return response()->download($path_2);
-    //     }
-    //     }
-
-    // // function DownloadSignedContract($id_user_contract){
-    // //     // 1er methode to download file
-    // //     $user_contract = UserContract::findOrFail($id_user_contract);
-    // //     $file_name = "signed_contract\\" .$user_contract->fileContract;
-    // //     $path =  public_path($file_name);
-    // //     return response()->download($path);
-    // // }
+    // DownloadSignedContract and DownloadOldContract 
+    function DownloadOldContract($id_user_contract){
+        // 1er methode to download file
+        $user_contract = UserContract::findOrFail($id_user_contract);
+        $file_name_1 = "old_contract\\" .$user_contract->file_contract;
+        $file_name_2 = "signed_contract\\" .$user_contract->file_contract;
+        $path_1 =  public_path($file_name_1);
+        $path_2 =  public_path($file_name_2);
+        if (file_exists($path_1)){
+            return response()->download($path_1);
+        }
+        if (file_exists($path_2)){
+            return response()->download($path_2);
+        }
+    }
 
     // public function DownloadModelContracts($id_user_contract)
     // {
@@ -662,20 +634,14 @@ class UserController extends Controller
     //     return response()->json($role_user);
     // }
 
-    // public function getAllContractsUser($id)
-    // {
-    //     $contract = DB::table('user_contracts')
-    //         ->leftJoin('contracts', 'user_contracts.contract_id', '=', 'contracts.id')
-    //         ->select('user_contracts.*','contracts.type')
-    //         ->where([['user_contracts.user_id', '=', $id],
-    //         ['user_contracts.is_deleted', '=', 0]])
-    //         ->get();
+    public function getAllContractsUser($id)
+    {
+        $contracts = UserContract::with('contract')
+        ->where('user_id', $id)->where('is_deleted', 0)
+        ->get();
 
-    //     return response()->json([
-    //         'contract' => $contract,
-    //         'success' => true
-    //     ], 200);
-    // }
+        return $this->successResponse( $contracts );
+    }
 
 }
 
