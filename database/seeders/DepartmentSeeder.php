@@ -17,14 +17,14 @@ class DepartmentSeeder extends Seeder
             [
                 'department_name' => 'Département des Ressources Humaines',
                 'description' => 'Description du département RH',
-                'status' => 'Actif',
+                'status' => 'active',
                 'department_chief' => 1, // Remplacez par l'ID du chef de département
                 'is_deleted' => 0,
             ],
             [
                 'department_name' => 'Département de Développement',
                 'description' => 'Description du département de développement',
-                'status' => 'Inactif',
+                'status' => 'active',
                 'department_chief' => 2, // Remplacez par l'ID du chef de département
                 'is_deleted' => 0,
             ]

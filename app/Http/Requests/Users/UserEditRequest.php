@@ -55,8 +55,9 @@ class UserEditRequest extends FormRequest
             'regime_social' => 'required|string',
             'text' => 'nullable|string',
             // 'department_id' => 'required|integer',
-            'position_id' => 'required|integer',
-            'team_id' => 'required|integer',
+            
+            // 'position_id' => 'required|integer',
+            // 'team_id' => 'required|integer',
         ];
     }
 }
