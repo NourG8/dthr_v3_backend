@@ -16,14 +16,14 @@ class TeamUserSeeder extends Seeder
         $userTeams = [
             [
                 'is_leader' => 1,
-                'is_deleted' => 0,
+                
                 'integration_date' => '2022-11-08', // Remplacez par la date d'intégration réelle
                 'user_id' => 1, // Remplacez par l'ID réel de l'utilisateur
                 'team_id' => 1, // Remplacez par l'ID réel de l'équipe
             ],
             [
                 'is_leader' => 0,
-                'is_deleted' => 0,
+                
                 'integration_date' => '2022-11-08', // Remplacez par la date d'intégration réelle
                 'user_id' => 2, // Remplacez par l'ID réel de l'utilisateur
                 'team_id' => 2, // Remplacez par l'ID réel de l'équipe

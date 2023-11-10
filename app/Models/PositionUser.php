@@ -4,17 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PositionUser extends Model
 {
-    use HasFactory;
+    use HasFactory , SoftDeletes;
     
     protected $guarded = [];
     protected $with = ['position'];
 
     public function position()
     {
-        return $this->hasOne(Position::class,'id','position_id')->where('is_deleted', false);
+        return $this->hasOne(Position::class,'id','position_id');
     }
 
     public function user()

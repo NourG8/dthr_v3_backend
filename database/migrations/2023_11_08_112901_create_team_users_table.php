@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('team_users', function (Blueprint $table) {
             $table->increments('id');
             $table->integer('is_leader');
-            $table->integer('is_deleted')->default(0);
             $table->date('integration_date')->nullable();
             $table->unsignedBigInteger('user_id')->index('team_users_user_id_foreign');
             $table->unsignedBigInteger('team_id')->index('team_users_team_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

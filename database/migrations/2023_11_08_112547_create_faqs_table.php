@@ -15,10 +15,10 @@ return new class extends Migration
             $table->increments('id');
             $table->string('title');
             $table->longText('response');
-            $table->integer('is_deleted')->default(0);
             $table->string('etat')->nullable();       // publié le faq ou nn
             $table->longText('tags')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

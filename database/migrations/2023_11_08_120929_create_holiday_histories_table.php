@@ -21,6 +21,7 @@ return new class extends Migration
             $table->longText('raison_reject')->nullable($value = true);
             $table->unsignedBigInteger('holiday_id')->index('holiday_histories_holiday_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

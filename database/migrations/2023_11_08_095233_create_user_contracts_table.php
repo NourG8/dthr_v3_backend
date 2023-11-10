@@ -23,12 +23,12 @@ return new class extends Migration
             $table->string('file_contract')->nullable();  // le contrat final
             $table->enum('status', ['Draft', 'Edited', 'Delivered','Signed','Canceled','Ended'])->default("Draft");
             $table->date('date_status')->nullable($value = true);
-            $table->integer('is_deleted')->default(0);
             $table->string('raison')->nullable($value = true);
             $table->integer('only_physical');
             $table->unsignedBigInteger('contract_id')->index('user_contracts_contract_id_foreign');
             $table->unsignedBigInteger('user_id')->index('user_contracts_user_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->string('status')->default("active");
             $table->integer('department_chief');
-            $table->integer('is_deleted')->default(0);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

@@ -15,10 +15,10 @@ return new class extends Migration
             $table->increments('id');
             $table->string('name');
             $table->string('description')->nullable();
-            $table->integer('is_deleted')->default(0);
             $table->string('status')->default("active");
             $table->unsignedBigInteger('department_id')->index('teams_department_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

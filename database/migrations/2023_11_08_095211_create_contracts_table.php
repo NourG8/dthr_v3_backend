@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('contracts', function (Blueprint $table) {
             $table->increments('id');
             $table->string('type');
-            $table->integer('is_deleted')->default(0);
             $table->string('file')->nullable();
             $table->string('variables_contract')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
