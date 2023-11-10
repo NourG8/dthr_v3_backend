@@ -21,6 +21,7 @@ return new class extends Migration
             $table->longText('raison_reject')->nullable($value = true);
             $table->unsignedBigInteger('telework_id')->index('telework_histories_telework_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

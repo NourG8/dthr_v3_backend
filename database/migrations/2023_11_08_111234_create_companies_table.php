@@ -25,7 +25,6 @@ return new class extends Migration
             $table->integer('max_cin')->nullable();
             $table->integer('min_passport')->nullable();
             $table->integer('max_passport')->nullable();
-            $table->integer('is_deleted')->nullable();
             $table->string('nationality')->nullable();
             $table->string('regime_social')->nullable();
             $table->string('type')->nullable();
@@ -36,6 +35,7 @@ return new class extends Migration
             $table->string('start_time')->nullable();
             $table->string('end_time')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

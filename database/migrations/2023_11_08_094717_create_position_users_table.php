@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('position_id')->index('position_users_position_id_foreign');
             $table->unsignedBigInteger('user_id')->index('position_users_user_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

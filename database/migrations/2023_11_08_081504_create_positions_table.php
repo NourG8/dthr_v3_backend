@@ -18,8 +18,9 @@ return new class extends Migration
             $table->string('description',5000)->nullable();
             $table->string('title');
             // $table->unsignedBigInteger('role_id')->index('positions_role_id_foreign');
-            $table->integer('is_deleted')->default(0);
-            $table->timestamps();
+            $table->timestamps(); 
+            $table->softDeletes();
+            
         });
     }
 

@@ -17,14 +17,14 @@ class TeamSeeder extends Seeder
             [
                 'name' => 'Équipe 1',
                 'description' => 'Description de l\'équipe 1',
-                'is_deleted' => 0,
+                
                 'status' => 'active',
                 'department_id' => 1, // Remplacez par l'ID réel du département
             ],
             [
                 'name' => 'Équipe 2',
                 'description' => 'Description de l\'équipe 2',
-                'is_deleted' => 0,
+                
                 'status' => 'active',
                 'department_id' => 2, // Remplacez par l'ID réel du département
             ],

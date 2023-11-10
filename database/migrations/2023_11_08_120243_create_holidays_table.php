@@ -19,9 +19,9 @@ return new class extends Migration
             $table->string('status')->default("active");
             $table->date('date');
             $table->integer('level');
-            $table->integer('is_deleted')->default(0);
             $table->unsignedBigInteger('user_id')->index('holidays_user_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

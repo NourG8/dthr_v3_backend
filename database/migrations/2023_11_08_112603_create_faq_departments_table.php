@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('faq_departments', function (Blueprint $table) {
             $table->increments('id');
-            $table->integer('is_deleted')->default(0);
             $table->unsignedBigInteger('faq_id')->index('faq_departments_faq_id_foreign');
             $table->unsignedBigInteger('department_id')->index('faq_departments_department_id_foreign');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

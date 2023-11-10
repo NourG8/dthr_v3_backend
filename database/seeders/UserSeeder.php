@@ -55,7 +55,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'As5Z01669218048.png',
@@ -94,7 +94,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'HOAuX1669218064.jpeg',
@@ -133,7 +133,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'Q58Kx1669218097.webp',
@@ -172,7 +172,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'img.png',
@@ -211,7 +211,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'img.png',
@@ -250,7 +250,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'img.png',
@@ -289,7 +289,7 @@ class UserSeeder extends Seeder
 
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'img.png',
@@ -327,7 +327,7 @@ class UserSeeder extends Seeder
                 'motivation' => json_encode([["id" => 1, "text" => "environnement de travail"], ["id" => 3, "text" => "atmosphère"], ["id" => 2, "text" => "professionnalisme"], ["id" => 4, "text" => "Reconnaissance"], ["id" => 5, "text" => "argent"]]),
                 'pwd_reset_admin' => 0,
                 'email_verified_at' => null,
-                'is_deleted' => 0,
+                
                 'regime_social' => "cnss",
                 'text' => null,
                 'image' => 'img.png',

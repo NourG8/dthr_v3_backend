@@ -46,11 +46,11 @@ return new class extends Migration
             $table->longText('motivation');
             $table->integer('pwd_reset_admin');
             $table->timestamp('email_verified_at')->nullable();
-            $table->integer('is_deleted')->default(0);
             $table->string('regime_social');
             $table->string('text')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
