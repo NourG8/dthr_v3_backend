@@ -123,10 +123,10 @@ class UserController extends Controller
             return $this->successResponse($contracts);
     }
 
-    public function editUser(UserEditRequest $request,$id)
+    public function editUser(UserEditRequest $request, $id)
     {
-        // $this->authorize('update', User::class);
         $user = User::findOrFail($id);
+
         $user->update($request->validated());
 
         $existingPositions = $user->positions->where("end_date" , "==" , null)->pluck('position_id')->toArray();
