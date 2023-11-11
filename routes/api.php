@@ -22,9 +22,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-Route::post('/verif-code', [AuthController::class, 'verifyResetPasswordCode']);
+// Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+// Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+// Route::post('/verif-code', [AuthController::class, 'verifyResetPasswordCode']);
 
 Route::get("users", [UserController::class, 'getAllUsers']);
 Route::get("users/manager", [UserController::class, 'getAllUserManager']);
