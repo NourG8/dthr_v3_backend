@@ -76,5 +76,8 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
   Route::put("rejet/provisoire/conge/{id}", [HolidayController::class, 'RejetProvisoire']);
   Route::put("rejet/definitive/conge/{id}", [HolidayController::class, 'RejetDefinitive']);
 
+  Route::put("accepter/conge/{id}", [HolidayController::class, 'accepterHoliday']);
+  Route::put("annuler/conge/{id}", [HolidayController::class, 'AnnulerHoliday']);
+
   
 
