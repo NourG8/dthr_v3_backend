@@ -69,7 +69,12 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
   Route::get("conges/{id}", [HolidayController::class, 'getAllHoliday']);
   Route::get("histories-conge-leader/{id}", [HolidayController::class, 'getHistoriqueHolidayLeader']);
   Route::get("historiques/conges/{id}", [HolidayController::class, 'getHistoriqueHoliday']);
+  Route::post("conge/{id}", [HolidayController::class, 'AddHoliday']);
+  Route::put("conge/{id}", [HolidayController::class, 'updateHoliday']);
+  Route::put("annuler/conge/{id}", [HolidayController::class, 'AnnulerHoliday']);
 
+  Route::put("rejet/provisoire/conge/{id}", [HolidayController::class, 'RejetProvisoire']);
+  Route::put("rejet/definitive/conge/{id}", [HolidayController::class, 'RejetDefinitive']);
 
   
 
