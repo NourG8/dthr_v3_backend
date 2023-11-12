@@ -46,6 +46,34 @@ class AuthController extends Controller
         return $this->successResponse(['message' => 'authentication.logout_success'], 200);
     }
 
+    //   /**
+    //  * @return \Illuminate\Http\JsonResponse
+    //  */
+    // public function forgotPassword(StoreForgotPasswordRequest $request)
+    // {
+    //     $validatedRequest = $request->validated([
+    //         'email' => 'required|email|exists:users',
+    //   ]);
+    
+    //     $user = User::where('email', $validatedRequest['email'])
+    //                  ->whereNotNull('password')
+    //                  ->firstOrFail();
+
+    //     PasswordReset::updateOrInsert(['email' => $email], $code);
+        
+    //     $status = Password::sendResetLink($request->only('email'));
+    
+    //     if ($status === Password::RESET_LINK_SENT) 
+    //     {
+    //         return $this->successResponse('Réinitialisation du mot de passe envoyée avec succès à l\'utilisateur', 200);
+    //     } 
+    //     else 
+    //     {
+    //         return $this->errorResponse('forgot_fail', 400);
+    //     }
+    // }
+    
+
 
     
 }

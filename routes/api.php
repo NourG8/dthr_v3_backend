@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CompanyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +22,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
+// Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+// Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+// Route::post('/verif-code', [AuthController::class, 'verifyResetPasswordCode']);
 
 Route::get("users", [UserController::class, 'getAllUsers']);
 Route::get("users/manager", [UserController::class, 'getAllUserManager']);
@@ -38,5 +43,11 @@ Route::put("changerImg/{id}", [UserController::class, 'ChangePhotoProfil']);
 Route::post("user/upload/old_contract/{id_user}", [UserController::class, 'uploadOldContract']);
 Route::get("user_contract/download/{id_user_contract}", [UserController::class, 'DownloadOldContract']);
 Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser']);
+
+  //CRUD operations company
+  Route::post("company", [CompanyController::class, 'AddCompany']);
+  Route::put("company/{id}", [CompanyController::class, 'editCompany']);
+  Route::put("changer/photo/{id}", [CompanyController::class, 'ChangePhoto']);
+  Route::get("company", [CompanyController::class, 'getCompany']);
 
 

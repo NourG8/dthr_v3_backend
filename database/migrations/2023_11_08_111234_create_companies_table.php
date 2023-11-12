@@ -13,27 +13,27 @@ return new class extends Migration
     {
         Schema::create('companies', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->nullable();
-            $table->string('country')->nullable();
-            $table->string('logo')->nullable();
-            $table->string('email')->nullable();
-            $table->string('phone')->nullable();
-            $table->date('creation_date')->nullable();
-            $table->string('status')->nullable();
-            $table->string('description',5000)->nullable();
-            $table->integer('min_cin')->nullable();
-            $table->integer('max_cin')->nullable();
-            $table->integer('min_passport')->nullable();
-            $table->integer('max_passport')->nullable();
-            $table->string('nationality')->nullable();
+            $table->string('name');
+            $table->string('country');
+            $table->string('logo');
+            $table->string('email');
+            $table->string('phone');
+            $table->date('creation_date');
+            $table->string('status')->default('active');
+            $table->string('description',5000);
+            $table->integer('min_cin');
+            $table->integer('max_cin');
+            $table->integer('min_passport');
+            $table->integer('max_passport');
+            $table->string('nationality');
             $table->string('regime_social')->nullable();
-            $table->string('type')->nullable();
-            $table->string('first_color')->nullable();
-            $table->string('second_color')->nullable();
-            $table->integer('max_telework')->nullable();     //telework times
-            $table->string('type_telework')->nullable();
-            $table->string('start_time')->nullable();
-            $table->string('end_time')->nullable();
+            $table->string('type');
+            $table->string('first_color');
+            $table->string('second_color');
+            $table->integer('max_telework');     //telework times
+            $table->string('type_telework');
+            $table->string('start_time');
+            $table->string('end_time');
             $table->timestamps();
             $table->softDeletes();
         });
