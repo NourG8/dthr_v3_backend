@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\HolidayController;
 
 /*
 |--------------------------------------------------------------------------
@@ -50,4 +51,25 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
   Route::put("changer/photo/{id}", [CompanyController::class, 'ChangePhoto']);
   Route::get("company", [CompanyController::class, 'getCompany']);
 
+  Route::get("get-user/{id}", [HolidayController::class, 'getUser']);
+  Route::get("get-leader/{id}", [HolidayController::class, 'getLeader']);
+  Route::get("get-chefdep/{id}", [HolidayController::class, 'getChiefDepartement']);
+  Route::get("get_ids_leaders/{id}", [HolidayController::class, 'get_ids_leaders']);
+  Route::get("get_ids_chef_dep/{id}", [HolidayController::class, 'get_ids_chef_dep']);
+  Route::get("get_ids_gerants/{id}", [HolidayController::class, 'get_ids_gerants']);
+
+  Route::get("get-gerant", [HolidayController::class, 'getAllGerants']);
+  Route::get("user/conge/{id}", [HolidayController::class, 'getHolidayUser']);
+  Route::get("user/historique/conge/{id}", [HolidayController::class, 'getHistoriqueHolidayUser']);
+  Route::get("test/{id}", [HolidayController::class, 'test_Leader_ChefDep_Gerant']);
+  Route::get("conge-leader/{id}", [HolidayController::class, 'getAllHolidayLeader']);
+  Route::get("conge-chief-dep/{id}", [HolidayController::class, 'getAllHolidayChefDepartment']);
+  Route::get("conge-gerant/{id}", [HolidayController::class, 'getAllHolidayGerant']);
+
+  Route::get("conges/{id}", [HolidayController::class, 'getAllHoliday']);
+  Route::get("histories-conge-leader/{id}", [HolidayController::class, 'getHistoriqueHolidayLeader']);
+  Route::get("historiques/conges/{id}", [HolidayController::class, 'getHistoriqueHoliday']);
+
+
+  
 
