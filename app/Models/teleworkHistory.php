@@ -11,4 +11,10 @@ class teleworkHistory extends Model
     use HasFactory , SoftDeletes;
 
     protected $guarded = [];
+
+    
+    public function telework()
+    {
+        return $this->belongsTo(Telework::class, 'telework_id', 'id');
+    }
 }

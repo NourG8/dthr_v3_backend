@@ -2,7 +2,7 @@
 
 <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-    <title>Response following the cancellation of teleworking</title>
+    <title>Response following the request for telework</title>
     <meta name="description" content="Reset Password Email Template.">
     <style type="text/css">
        a {
@@ -40,6 +40,7 @@
                                 <tr>
                                     <td style="height:80px;">&nbsp;</td>
                                 </tr>
+
   <tr>
                         <td style="text-align:center;">
                         <img width="60" src="{{asset('assets/logo.png')}}" title="logo" alt="logo">
@@ -50,12 +51,22 @@
                                 </tr>
                                 <tr>
                                     <td style="padding:0 35px;">
-                                        <h1 style="color:#1e1e2d; font-weight:500; margin:0;font-size:32px;font-family:'Rubik',sans-serif;">Response following the cancellation of teleworking</h1>
+                                        <h1 style="color:#1e1e2d; font-weight:500; margin:0;font-size:32px;font-family:'Rubik',sans-serif;">You have an answer on your telework request</h1>
                                         <span
                                             style="display:inline-block; vertical-align:middle; margin:29px 0 26px; border-bottom:1px solid #cecece; width:100px;"></span>
                                         <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">
-                                          Hey ..<br>
-                                            The user <b> {{ $user['lastName']}} {{ $user['firstName']}} </b> <b>canceled</b> his/her teleworking request.
+                                            Hey <b> {{ $user['last_name']}} {{ $user['first_name']}} </b>  <br>
+                                            You wish to benefit from telework at the frequency of
+                                            @foreach($dates as $index=>$date)
+                                                {{ $date }}
+                                                @if($index < count($dates)-1 )
+                                                     ,
+                                                @endif
+                                            @endforeach .
+                                            We have studied your request and regret to inform you that we have <b>provisionally rejected</b> your request.<br>
+                                            here is the reason for refusal : " {{$result}} ". <br>
+                                            You can modify your request according to the reason for rejection. <br>
+                                            We remain available to answer any questions you may have.
                                         </p>
                                        </td>
                                 </tr>

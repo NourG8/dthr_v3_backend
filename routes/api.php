@@ -6,6 +6,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\PositionController;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TeleworkController;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,6 +81,57 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
 
   Route::put("accepter/conge/{id}", [HolidayController::class, 'accepterHoliday']);
   Route::put("annuler/conge/{id}", [HolidayController::class, 'AnnulerHoliday']);
+
+  // CRUD operations position
+  Route::get("positions", [PositionController::class, 'getAllPositions']);
+  Route::get("positions/delete/{id}", [PositionController::class, 'destroyPosition']);
+  Route::post("positions", [PositionController::class, 'AddPosition']);
+  Route::put("positions/{id}", [PositionController::class, 'editPosition']);
+  Route::put("position/archive/{id}", [PositionController::class, 'archivePosition']);
+  Route::get("position/list/archive", [PositionController::class, 'getArchivedPosition']);
+  Route::put("position/reset/{id}", [PositionController::class, 'resetPosition']);
+  Route::get("position/getnb_Pos/{id}", [PositionController::class, 'getNb_Users_in_Pos']);
+
+  // CRUD operations teams
+  Route::post("team", [TeamController::class, 'addTeams']);
+  Route::put("delete/team/{id}", [TeamController::class, 'deleteTeams']);
+  Route::put("desactiver/team/{id}", [TeamController::class, 'desactiverTeams']);
+  Route::put("activer/team/{id}", [TeamController::class, 'activerTeams']);
+  Route::put("update/team/{id}", [TeamController::class, 'updateTeams']);
+  Route::get("teams", [TeamController::class, 'getTeams']);
+  Route::get("teams/archive", [TeamController::class, 'getAllArchiveTeams']);
+  Route::get("users/manager", [UserController::class, 'getAllUserManager']);
+  Route::get("users/teams/{id}", [TeamController::class, 'getUsersInTeams']);
+  Route::put("delete/user/team/{id}", [TeamController::class, 'deleteUserTeams']);
+
+  // CRUD Telework
+  Route::get("telework/{id}", [TeleworkController::class, 'getAllTeleworks']);
+  Route::get("/telework/histories/{id}", [TeleworkController::class, 'getAllTeleworksHistories']);
+  Route::get("/getuser/teleworks", [TeleworkController::class, 'getTeleworksUser']);
+  Route::get("telework/delete/{id}", [TeleworkController::class, 'destroyTelework']);
+  Route::post("telework", [TeleworkController::class, 'AddTelework']);
+  Route::put("telework/{id}", [TeleworkController::class, 'editTelework']);
+
+  
+  Route::get("telework/refuse/{id}", [TeleworkController::class, 'refuseTelework']);
+  Route::get("getUsersFonct/{id}", [TeleworkController::class, 'getUsersFonct']);
+  Route::get("getAllTeleworkLeader/{id}", [TeleworkController::class, 'getAllTeleworkLeader']);
+  Route::get("user/telework/{id}", [TeleworkController::class, 'getTeleworkUser']);
+
+  Route::get("acceptLeader/{id}", [TeleworkController::class, 'acceptTelLeader']);
+  Route::get("acceptTelChefDep/{id}", [TeleworkController::class, 'acceptTelChefDep']);
+  Route::get("acceptTelGerant/{id}", [TeleworkController::class, 'acceptTelGerant']); 
+  Route::get("accepter/{id}", [TeleworkController::class, 'accepter']);
+  Route::get("getNbLeaders/{id}", [TeleworkController::class, 'getNbLeaders']);
+  Route::get("getNbGerants", [TeleworkController::class, 'getNbGerants']);
+  Route::get("getNbChefDep/{id}", [TeleworkController::class, 'getNbChefDep']);
+  Route::get("responsables/{id}", [TeleworkController::class, 'ResponsableAddTelework']);
+
+  Route::post("rejetProvisoire/{id}", [TeleworkController::class, 'RejetProvisoire']);
+  Route::post("rejetDefinitive/{id}", [TeleworkController::class, 'RejetDefinitive']);
+
+  Route::get("annulerTelework/{id}", [TeleworkController::class, 'AnnulerTelework']);
+  Route::get("teleworksHistoriques/{id}", [TeleworkController::class, 'getTeleworkUserHistories']);
 
   
 
