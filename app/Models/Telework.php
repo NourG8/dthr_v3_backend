@@ -10,5 +10,18 @@ class Telework extends Model
 {
     use HasFactory , SoftDeletes;
 
+    // protected $with = ['histories'];
+
     protected $guarded = [];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(teleworkHistory::class);
+    }
+
 }

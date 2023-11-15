@@ -11,15 +11,15 @@ class TeamUser extends Model
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];
-    protected $with = ['team'];
+    // protected $with = ['user','team'];
 
     public function team()
     {
-        return $this->hasOne(Team::class,'id','team_id');
+        return $this->belongsTo(Team::class,'team_id','id')->where('status','active');
     }
 
     public function user()
     {
-        return $this->hasOne(User::class,'id','user_id');
+        return $this->belongsTo(User::class,'user_id','id')->where('status','active');
     }
 }

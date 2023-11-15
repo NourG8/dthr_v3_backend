@@ -54,15 +54,19 @@
                                         <h1 style="color:#1e1e2d; font-weight:500; margin:0;font-size:32px;font-family:'Rubik',sans-serif;">You have an answer on your telework request</h1>
                                         <span
                                             style="display:inline-block; vertical-align:middle; margin:29px 0 26px; border-bottom:1px solid #cecece; width:100px;"></span>
-                                        <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">                                  
-                                        Hey <b> {{ $user['lastName']}} {{ $user['firstName']}} </b>  <br>
-                                        You wish to benefit from the leave at the frequency of
+                                        <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">
+                                          Hey <b> {{ $user['last_name']}} {{ $user['first_name']}} </b>  <br>
+                                            You wish to benefit from telework at the frequency of
                                             @foreach($dates as $index=>$date)
-                                                {{ $date['date'] }}
-                                               
+                                                {{ $date }}
+                                                @if($index < count($dates) - 1 )
+                                                     ,
+                                                @endif
                                             @endforeach .
-                                        We have reviewed your request and are pleased to inform you that we <b>accept</b> your request.<br>
-                                        We remain available to answer any questions you may have.
+                                            We have studied your request and regret to inform you that we have <b>rejected</b> your request.<br>
+                                            here is the reason for refusal : " {{$result}} ". <br>
+                                            You can modify your request according to the reason for rejection. <br>
+                                            We remain available to answer any questions you may have.
                                         </p>
                                        </td>
                                 </tr>
