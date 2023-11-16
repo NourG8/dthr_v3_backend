@@ -114,7 +114,7 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
 
   
   Route::get("telework/refuse/{id}", [TeleworkController::class, 'refuseTelework']);
-  Route::get("getUsersFonct/{id}", [TeleworkController::class, 'getUsersFonct']);
+
   Route::get("getAllTeleworkLeader/{id}", [TeleworkController::class, 'getAllTeleworkLeader']);
   Route::get("user/telework/{id}", [TeleworkController::class, 'getTeleworkUser']);
 
