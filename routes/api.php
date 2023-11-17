@@ -9,6 +9,7 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\PositionController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TeleworkController;
+use App\Http\Controllers\DepartmentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -104,6 +105,19 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
   Route::get("users/teams/{id}", [TeamController::class, 'getUsersInTeams']);
   Route::put("delete/user/team/{id}", [TeamController::class, 'deleteUserTeams']);
 
+  //CRUD departments
+  Route::get("departments", [DepartmentController::class, 'getAllDepartments']);
+  Route::put("departments/delete/{id}", [DepartmentController::class, 'destroyDepartment']);
+  Route::post("departments", [DepartmentController::class, 'AddDepartment']);
+  Route::put("departments/{id}", [DepartmentController::class, 'editDepartment']);
+  Route::put("departments/archive/{id}", [DepartmentController::class, 'archiveDepartment']);
+  Route::get("department/list/archive", [DepartmentController::class, 'getArchivedDepartment']);
+  Route::get("department/user/{id_dep}", [DepartmentController::class, 'getUsersActiveDepartment']);
+  Route::get("getNb_team/{id}", [DepartmentController::class, 'getNb_team_in_dep']);
+  Route::get("getNb_team_Archive/{id}", [DepartmentController::class, 'getNb_team_in_dep_Archive']);
+  Route::get("getNb_Users/{id}", [DepartmentController::class, 'getNb_Users_in_dep']);
+  Route::put("department/reset/{id}", [DepartmentController::class, 'reactivateDepartment']);
+
   // CRUD Telework
   Route::get("telework/{id}", [TeleworkController::class, 'getAllTeleworks']);
   Route::get("/telework/histories/{id}", [TeleworkController::class, 'getAllTeleworksHistories']);
@@ -112,9 +126,7 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
   Route::post("telework", [TeleworkController::class, 'AddTelework']);
   Route::put("telework/{id}", [TeleworkController::class, 'editTelework']);
 
-  
   Route::get("telework/refuse/{id}", [TeleworkController::class, 'refuseTelework']);
-
   Route::get("getAllTeleworkLeader/{id}", [TeleworkController::class, 'getAllTeleworkLeader']);
   Route::get("user/telework/{id}", [TeleworkController::class, 'getTeleworkUser']);
 
