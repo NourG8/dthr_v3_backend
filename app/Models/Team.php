@@ -23,4 +23,18 @@ class Team extends Model
         return $this->hasMany(TeamUser::class);
     }
 
+    public static function getNumberOfInactiveTeamsInDepartment($departmentId)
+    {
+        return self::where('department_id', $departmentId)
+            ->where('status', 'inactive_dep')
+            ->whereHas('department', function ($query) {
+                $query->where('status', 'inactive');
+            })->count();
+    }
+
+    public static function getNumberOfActiveTeamsInDepartment($departmentId)
+    {
+        return self::where("department_id",$departmentId)->where("status","active")->count();
+    }
+
 }
