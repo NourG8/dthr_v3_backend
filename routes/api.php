@@ -59,8 +59,8 @@ Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser'])
   Route::get("get-leader/{id}", [HolidayController::class, 'getLeader']);
   Route::get("get-chefdep/{id}", [HolidayController::class, 'getChiefDepartement']);
   Route::get("get_ids_leaders/{id}", [HolidayController::class, 'get_ids_leaders']);
-  Route::get("get_ids_chef_dep/{id}", [HolidayController::class, 'get_ids_chef_dep']);
-  Route::get("get_ids_gerants/{id}", [HolidayController::class, 'get_ids_gerants']);
+  Route::get("get_ids_chef_dep/{id}", [HolidayController::class, 'get_ids_department_chief']);
+  Route::get("get_ids_gerants", [HolidayController::class, 'get_ids_gerants']);
 
   Route::get("get-gerant", [HolidayController::class, 'getAllGerants']);
   Route::get("user/conge/{id}", [HolidayController::class, 'getHolidayUser']);

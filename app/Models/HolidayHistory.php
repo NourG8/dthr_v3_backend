@@ -11,4 +11,9 @@ class HolidayHistory extends Model
     use HasFactory , SoftDeletes;
 
     protected $guarded = [];
+
+    public function holiday()
+    {
+        return $this->belongsTo(Holiday::class);
+    }
 }

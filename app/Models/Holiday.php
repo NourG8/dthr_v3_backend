@@ -26,9 +26,9 @@ class Holiday extends Model
         return $this->hasMany(HolidayHistory::class);
     }
 
-    public static function getAllCongeUser($id_user)
+    public static function getAllHolidayUser($id_user)
     {
-        $conges = Holiday::where([['user_id', '=', $id_user],['status', '!=', 'annuler'],['status', '!=', 'accepter'],['status', '!=', 'rejet définitif']])->with([
+        $conges = Holiday::where([['user_id', '=', $id_user],['status', '!=', 'annuler'],['status', '!=', 'accepter'],['status', '!=', 'Rejet definitif']])->with([
             'histories' => fn($query) => $query->where([['id_responsible', '!=', $id_user]]),
         ])->get();
 
@@ -39,7 +39,6 @@ class Holiday extends Model
                     $history['fullName'] = $responsable['last_name'] .' '. $responsable['first_name'];
                 }
             }
-
         }
 
         return $conges;
