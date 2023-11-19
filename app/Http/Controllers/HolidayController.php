@@ -49,10 +49,7 @@ class HolidayController extends Controller
 
         $sex = $prefixes[$user['sex']][$user['Family_situation']] ?? null;
         
-        $now = Carbon::now();
-        $date_actuelle = $now->year;
-
-        return [$user, $sex, $date_actuelle];
+        return [$user, $sex, Carbon::now()->year];
     }
 
     public static function getLeader($id_user)
@@ -73,26 +70,20 @@ class HolidayController extends Controller
         return $teamLeaders->toArray();
     }
     
-
     public static function getChiefDepartement($id_user)
     {
         $userDepartments = User::where([
             ['status', '=', 'active'],
             ['id', '=', $id_user],
-        ])->with(['teams.team.department'])->get();
+        ])->with(['teams.team.department'])->first();
     
-        $chefDepartments = [];
+        $chefDepartments = $userDepartments->teams->map(function ($team) {
+            $department = $team->team->department;
+            $chefDep = User::findOrFail($department->department_chief);
+            return $chefDep;
+        });
     
-        foreach ($userDepartments[0]['teams'] as $team) {
-            $department = $team['team']['department'];
-            $chefDepartmentId = $department['department_chief'];
-    
-            $chefDep = User::findOrFail($chefDepartmentId);
-            $chefDepartments[] = $chefDep;
-        }
-    
-        // return array_values(array_unique($chefDepartments));
-        return $chefDepartments;
+        return $chefDepartments->all();
     }
     
     public static function getAllGerants()
@@ -112,56 +103,48 @@ class HolidayController extends Controller
     public static function get_ids_leaders($id)
     {
         $leader = HolidayController::getLeader($id);
-
-        $id_leaders = [];
-        foreach ($leader as $l) {
-            array_push($id_leaders,$l['id']);
-        }
-       
-        return $id_leaders;
+        return array_column($leader, 'id');
     }
 
     public static function get_ids_department_chief($id)
     {
         $department_chief = HolidayController::getChiefDepartement($id);
-        $id_department_chief = [];
-        foreach ($department_chief as $c) {
-            array_push($id_department_chief,$c['id']);
-        }
-        return $id_department_chief;
+        return array_column($department_chief, 'id');
     }
 
     public static function get_ids_gerants()
     {
         $gerant = HolidayController::getAllGerants();
-        $id_gerants = [];
-        foreach ($gerant as $g) {
-            array_push($id_gerants,$g['id']);
-        }
-        return $id_gerants;
+        $gerantArray = $gerant->toArray();
+        return array_column($gerantArray, 'id');
     }
     
     public function getHolidayUser($id)
     {
+        // Étape 1: Récupération des responsables de l'utilisateur spécifié
         $responsables = array_values(array_unique(array_merge(
             HolidayController::get_ids_leaders($id),
             HolidayController::get_ids_department_chief($id),
             HolidayController::get_ids_gerants()
         )));
     
+        // Étape 2: Filtrage pour exclure l'utilisateur actuel des responsables
         $responsables = array_filter($responsables, fn($resp) => $resp != $id);
     
+        // Étape 3: Récupération de tous les congés de l'utilisateur
         $holidays = Holiday::getAllHolidayUser($id);
     
-        foreach ($holidays as &$conge) {
+        // Étape 4: Traitement des détails pour chaque congé
+        foreach ($holidays as $conge) {
             $list = collect($conge['histories'])
                 ->reject(fn($c) => $c['is_rejected_prov'] != 0)
                 ->map(function ($c) {
+                    // Assignation de valeurs spécifiques aux statuts
                     return $c['status'] == 'Rejet provisoire' ? -1 : ($c['status'] == 'Rejet définitif' ? 'x' : $c['id_responsible']);
                 });
     
+            // Étape 6: Calcul du reste et ajout des détails au congé
             $rest = count($responsables) - $list->unique()->count();
-    
             $conge['rest'] = $rest;
             $conge['nb_responsable'] = count($responsables);
             $conge['nb_acceptation'] = $list->unique()->values()->all();
@@ -281,7 +264,6 @@ class HolidayController extends Controller
         return array_values($listHolidaysFinal->unique('id')->toArray());
     }
     
-
     public function getAllHolidayGerant($id_auth)
     {
         // afficher list pour le gerant !!!!
@@ -792,7 +774,6 @@ class HolidayController extends Controller
 
         return $this->successResponse( $conge);
     }
-
 
     public function acceptHolidayLeader($id_conge)
     {
