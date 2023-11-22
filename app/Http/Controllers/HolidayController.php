@@ -48,55 +48,55 @@ class HolidayController extends Controller
         ];
 
         $sex = $prefixes[$user['sex']][$user['Family_situation']] ?? null;
-        
+
         return [$user, $sex, Carbon::now()->year];
     }
 
     public static function getLeader($id_user)
     {
         $teamIds = TeamUser::where('user_id', $id_user)->pluck('team_id');
-    
-        if($teamIds->isEmpty()){
+
+        if ($teamIds->isEmpty()) {
             return [];
         }
-    
+
         $teamLeaders = TeamUser::whereIn('team_id', $teamIds)
-            ->where('is_leader',1)
+            ->where('is_leader', 1)
             ->with('user')
             ->get()
             ->unique('user_id')
             ->pluck('user');
-    
+
         return $teamLeaders->toArray();
     }
-    
+
     public static function getChiefDepartement($id_user)
     {
         $userDepartments = User::where([
             ['status', '=', 'active'],
             ['id', '=', $id_user],
         ])->with(['teams.team.department'])->first();
-    
+
         $chefDepartments = $userDepartments->teams->map(function ($team) {
             $department = $team->team->department;
             $chefDep = User::findOrFail($department->department_chief);
             return $chefDep;
         });
-    
+
         return $chefDepartments->all();
     }
-    
+
     public static function getAllGerants()
     {
         $gerantUsers = Position::where([
             ['status', '=', 'active'],
             ['job_name', '=', 'Gérant']
-        ])->with(['users.user' => fn($query) => $query->where('status', '=', 'active')])->get();
-    
+        ])->with(['users.user' => fn ($query) => $query->where('status', '=', 'active')])->get();
+
         $gerants = $gerantUsers->flatMap(function ($position) {
             return $position['users']->pluck('user');
         });
-    
+
         return $gerants->unique()->values();
     }
 
@@ -118,7 +118,7 @@ class HolidayController extends Controller
         $gerantArray = $gerant->toArray();
         return array_column($gerantArray, 'id');
     }
-    
+
     public function getHolidayUser($id)
     {
         // Étape 1: Récupération des responsables de l'utilisateur spécifié
@@ -129,15 +129,15 @@ class HolidayController extends Controller
         )));
     
         // Étape 2: Filtrage pour exclure l'utilisateur actuel des responsables
-        $responsables = array_filter($responsables, fn($resp) => $resp != $id);
+        $responsables = array_filter($responsables, fn ($resp) => $resp != $id);
     
         // Étape 3: Récupération de tous les congés de l'utilisateur
-        $holidays = Holiday::getAllHolidayUser($id);
+        $holidays = Holiday::getAllHolidayUser($id)->toArray();
     
-        // Étape 4: Traitement des détails pour chaque congé
-        foreach ($holidays as $conge) {
+        // Étape 4: Utilisation de array_map pour transformer chaque congé
+        $holidays = array_map(function ($conge) use ($responsables) {
             $list = collect($conge['histories'])
-                ->reject(fn($c) => $c['is_rejected_prov'] != 0)
+                ->reject(fn ($c) => $c['is_rejected_prov'] != 0)
                 ->map(function ($c) {
                     // Assignation de valeurs spécifiques aux statuts
                     return $c['status'] == 'Rejet provisoire' ? -1 : ($c['status'] == 'Rejet définitif' ? 'x' : $c['id_responsible']);
@@ -148,7 +148,9 @@ class HolidayController extends Controller
             $conge['rest'] = $rest;
             $conge['nb_responsable'] = count($responsables);
             $conge['nb_acceptation'] = $list->unique()->values()->all();
-        }
+    
+            return $conge;
+        }, $holidays);
     
         return $holidays;
     }
@@ -166,7 +168,7 @@ class HolidayController extends Controller
             ->get()
             ->each(function ($conge) {
                 $conge->date = Carbon::parse($conge->date)->format('d M Y');
-    
+
                 $conge->histories->each(function ($history) {
                     $responsable = User::findOrFail($history->id_responsible);
                     $history->date = Carbon::parse($history->created_at)->format('d M Y');
@@ -175,32 +177,22 @@ class HolidayController extends Controller
             });
     }
 
-    public static function test_Leader_ChefDep_Gerant($id_user)
+    public static function determineUserRoleStatus($id_user)
     {
-        //retourner l'utilisateur eli authentifier est ce que howa leader wela chef dep wela gerant
+        // Récupérer les leaders associés à l'utilisateur
         $leaders = HolidayController::getLeader($id_user);
-        $test_leader = 0;
-        foreach ($leaders as $leader) {
-            if($leader['id'] == $id_user){
-                $test_leader = 1;
-            }
-        }
-
-        $department_chief = Department::where('department_chief','=',$id_user)->get();
-        $test_chefDep = 0;
-             if(count($department_chief) != 0){
-                $test_chefDep = 1;
-            }
-
+        $leadersArray = collect($leaders)->toArray();
+        $test_leader = in_array($id_user, array_column($leadersArray, 'id')) ? 1 : 0;
+    
+        // Vérifier si l'utilisateur est chef de département
+        $test_chefDep = Department::where('department_chief', '=', $id_user)->exists() ? 1 : 0;
+    
+        // Récupérer tous les gérants et vérifier si l'utilisateur est parmi eux
         $gerants = HolidayController::getAllGerants();
-        $test_gerant = 0;
-        foreach ($gerants as $gerant) {
-            if($gerant['id'] == $id_user){
-                $test_gerant = 1;
-
-            }
-        }
-        return ["leader" => $test_leader,"department_chief" =>$test_chefDep,"gerant" =>$test_gerant];
+        $gerantsArray = collect($gerants)->toArray();
+        $test_gerant = in_array($id_user, array_column($gerantsArray, 'id')) ? 1 : 0;
+    
+        return ["leader" => $test_leader, "department_chief" => $test_chefDep, "gerant" => $test_gerant];
     }
 
     public function getAllHolidayLeader($id_auth)
@@ -209,7 +201,7 @@ class HolidayController extends Controller
             ->where('is_leader', 1)
             ->pluck('team_id')
             ->toArray();
-    
+
         $holidays = Holiday::where('level', 1)
             ->whereHas('user.teams', function ($query) use ($teamIds) {
                 $query->whereIn('team_id', $teamIds);
@@ -232,11 +224,11 @@ class HolidayController extends Controller
                 ]);
             }])
             ->get();
-    
+
         $listHolidaysFinal = $holidays->filter(function ($conge) {
             return $conge->history_count == 0 || $conge->histories->contains('id_responsible', auth()->id());
         });
-    
+
         return array_values($listHolidaysFinal->unique('id')->toArray());
     }
 
@@ -256,390 +248,206 @@ class HolidayController extends Controller
                 },
                 'user.teams.team.department',
             ])->get();
-    
+
         $listHolidaysFinal = $listHolidays->filter(function ($conge) use ($id_auth) {
             return count($conge['histories']) == 0 || $conge['histories']->contains('id_responsible', $id_auth);
         });
-    
+
         return array_values($listHolidaysFinal->unique('id')->toArray());
     }
-    
+
     public function getAllHolidayGerant($id_auth)
     {
-        // afficher list pour le gerant !!!!
-        $result_gerants = Holiday::where([['level','=',3]])->with([
-            'histories' => fn($query) => $query->where([['is_rejected_prov', '=', 0],['level', '=', 3],['id_responsible', '=', $id_auth]]),
-            'user'
-        ])->get();
-
-        $rep_responsable = false;
-
-        $List_holidays_final = [];
-
-        foreach($result_gerants as $conge) {
-            if(count($conge['histories']) == 0){
-                array_push($List_holidays_final,$conge);
-            }else{
-                foreach ($conge['histories'] as $history) {
-                    if($history['id_responsible'] == $id_auth){
-                            $rep_responsable = true;
-                    }else{
-                        array_push($List_holidays_final,$conge);
-                    }
-                }
-            }
-        }
-        return $result = array_values(array_unique($List_holidays_final));
+        // Afficher la liste pour le gérant
+        $result_gerants = Holiday::where('level', 3)
+            ->with(['histories' => fn ($query) => $query->where(['is_rejected_prov' => 0, 'level' => 3, 'id_responsible' => $id_auth]), 'user'])
+            ->get();
+    
+        $List_holidays_final = array_filter($result_gerants->toArray(), function ($conge) use ($id_auth) {
+            // Vérifier si le responsable est impliqué dans l'historique du congé
+            $rep_responsable = count($conge['histories']) > 0 && collect($conge['histories'])->contains('id_responsible', $id_auth);
+            return !$rep_responsable;
+        });
+    
+        // Réindexer le tableau pour éviter les clés numériques non continues
+        return array_values(array_unique($List_holidays_final, SORT_REGULAR));
     }
-
+    
     public function getAllHoliday($id_auth)
     {
         $result = [];
-        // ken user auth = leader !!
-        $test_fonction = HolidayController::test_Leader_ChefDep_Gerant($id_auth);
-
-        if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 0){
-           $result = HolidayController::getAllHolidayLeader($id_auth);
-        }
-        if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0){
-            $result = HolidayController::getAllHolidayChefDepartment($id_auth);
-        }
-        if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 1){
-            $result = HolidayController::getAllHolidayGerant($id_auth);
+        $test_fonction = HolidayController::determineUserRoleStatus($id_auth);
+    
+        if ($test_fonction['leader'] == 1) {
+            $result = array_merge($result, HolidayController::getAllHolidayLeader($id_auth));
+        } else if ($test_fonction['department_chief'] == 1) {
+            $result = array_merge($result, HolidayController::getAllHolidayChefDepartment($id_auth));
+        } else if ($test_fonction['gerant'] == 1) {
+            $result = array_merge($result, HolidayController::getAllHolidayGerant($id_auth));
         }
 
-        if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0){
-            $result_1 = HolidayController::getAllHolidayLeader($id_auth);
-            $result_2 = HolidayController::getAllHolidayChefDepartment($id_auth);
-            $result = array_merge($result_1, $result_2);
-        }
-
-         if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 1){
-            $result_1 = HolidayController::getAllHolidayGerant($id_auth);
-            $result_2 = HolidayController::getAllHolidayChefDepartment($id_auth);
-            $result = array_merge($result_1, $result_2);
-         }
-
-         if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 1){
-            $result_1 = HolidayController::getAllHolidayLeader($id_auth);
-            $result_2 = HolidayController::getAllHolidayGerant($id_auth);
-            $result = array_merge($result_1, $result_2);
-         }
-
-         if($test_fonction['leader'] == 1 && $test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 1){
-            $result_1 = HolidayController::getAllHolidayLeader($id_auth);
-            $result_2 = HolidayController::getAllHolidayGerant($id_auth);
-            $result_3 = HolidayController::getAllHolidayChefDepartment($id_auth);
-            $result = array_merge($result_1, $result_2, $result_3);
-         }
-
-
-        return response()->json([
-            'conge' => $result,
-            'success' => true
-        ], 200);
+        return $this->successResponse($result);
     }
 
     public function getHistoriqueHolidayLeader($id_auth)
     {
-        $List_conges = [];
-        // afficher list pour le responsable !!!!
-        $List_team = TeamUser::where([['user_id','=',$id_auth],['is_leader','=',1]])->get();
-        $team_id = [];
-        // return id team eli appartient liha el id_auth kenou leader ala equipe !!!
-        if(count($List_team) != 0){
-            foreach ($List_team as $team) {
-                array_push($team_id,$team['team_id']);
-            }
-        }else{
-            $team_id =  null;
-        }
-
-        $conges = Holiday::where([['status','!=','Envoye'],['user_id','!=',$id_auth]])->with([
-            'histories' ,
-            'user'=> fn($query) => $query->with([
-                'teams'=> ([
-                    'team'=> fn($query) => $query->where([['status','=','active']])->with([
-                        'department'=> fn($query) => $query->where([['status','=','active']])->pluck('id')
-                        ])
-                ])
-            ])
-        ])->get();
-
-       $user_team = [];
-
-        foreach ($conges as $conge) {
-
-            foreach ($conge['user']['teams'] as $team) {
-                if($team_id != null){
-                    if(in_array($team['team_id'],$team_id)){
-                        array_push($List_conges,$conge);
-                        $user_team = array_values(array_unique($List_conges));
-                    }
-                }
-            }
-        }
-
         $List_conges_final = [];
-
-        foreach ($user_team as $conge) {
-            $tab_ids = [];
-            $date_final = Carbon::parse($conge->date)->format('d M Y');
-            $conge['date'] = $date_final;
-            if(count($conge['histories']) != 0){
-                $List_History = $conge['histories'];
-                $conge['histories'] = [];
-                foreach ($List_History as $history) {
-
-                    $responsable = User::findOrFail($history['id_responsible']);
-                    $history['fullName'] = $responsable['last_name'] .' '. $responsable['first_name'];
-
-                    $date = Carbon::parse($history->created_at)->format('d M Y');
-                    $history['date'] = $date;
-                    array_push($tab_ids,$history['id_responsible']);
-                    if($history['id_responsible'] == $id_auth){
-                         array_push($List_conges_final,$conge);
-                    }
-                    $conge['tab_ids_Final'] = array_values(array_unique($tab_ids));
-                }
-
-            }
-
-
-        }
-
+    
+        $List_team = TeamUser::where([['user_id', '=', $id_auth], ['is_leader', '=', 1]])->get();
+        $team_id = $List_team->pluck('team_id')->toArray();
+        $team_id = empty($team_id) ? null : $team_id;
+    
+        $conges = HolidayHistory::getFilteredHolidays($id_auth, $team_id);
+    
+        $conges->each(function ($conge) use (&$List_conges_final, $id_auth) {
+            HolidayHistory::processHolidayHistoriesForLeadership($conge, $List_conges_final, $id_auth);
+        });
+    
         return array_values(array_unique($List_conges_final));
     }
-
+    
     public function getHistoriqueHolidayChefDepartment($id_auth)
     {
-        $List_conges = [];
-        $List_department = Department::where([['department_chief','=',$id_auth]])->get();
-        $List_id_department = [];
-
-        // return id team eli appartient liha el id_auth kenou leader ala equipe !!!
-        if(count($List_department) != 0){
-            foreach ($List_department as $dep) {
-                array_push($List_id_department,$dep['id']);
-            }
-        }else{
-            $List_id_department =  null;
-        }
-
-        $conges = Holiday::where([['level','!=',1],['status','!=','Envoye'],['user_id','!=',$id_auth]])->with([
-            'histories',
-            'user'=> fn($query) => $query->with([
-                'teams'=> ([
-                    'team'=> fn($query) => $query->where([['status','=','active']])->with([
-                        'department'=> fn($query) => $query->where([['status','=','active']])->pluck('id')
-                        ])
-                ])
-            ])
-          ])->get();
-
-            $user_dep = [];
-
-            foreach ($conges as $conge) {
-                foreach ($conge['user']['teams'] as $team) {
-                    if($team['team'] != null && $List_id_department != [] ){
-                        if(in_array($team['team']['department']['id'],$List_id_department)){
-                            array_push($List_conges,$conge);
-                            $user_dep = array_values(array_unique($List_conges));
-                        }
-                    }
-                }
-            }
-
-        $List_conges_final = [];
-        $rep_responsable = false;
-
-        foreach($user_dep as $conge) {
-            $date_final = Carbon::parse($conge->date)->format('d M Y');
-            $conge['date'] = $date_final;
-            if(count($conge['histories']) != 0){
-                foreach ($conge['histories'] as $history) {
-                        $responsable = User::findOrFail($history['id_responsible']);
-                        $history['fullName'] = $responsable['last_name'] .' '. $responsable['first_name'];
-                        $date = Carbon::parse($history->created_at)->format('d M Y');
-                        $history['date'] = $date;
-                        if($history['id_responsible'] == $id_auth){
-                            array_push($List_conges_final,$conge);
-                        }
-                }
-            }
-        }
+        $List_id_department = Department::where('department_chief', $id_auth)->pluck('id')->toArray();
+    
+        $conges = HolidayHistory::getFilteredHolidays($id_auth, $List_id_department);
+        $user_dep = HolidayHistory::filterUserDepartments($conges, $List_id_department);
+        $List_conges_final = HolidayHistory::processHistoriesForChefDepartment($user_dep, $id_auth);
+    
         return array_values(array_unique($List_conges_final));
     }
 
     public function getHistoriqueHolidayGerant($id_auth)
     {
-        // afficher list pour le gerant !!!!
-        $result_gerants = Holiday::where([['level','!=',1],['level','!=',2],['status','!=','Envoye'],['user_id','!=',$id_auth]])->orWhere([['level','!=',2],['status','!=','Envoye'],['user_id','!=',$id_auth]])->with([
-            'histories',
-            'user'=> fn($query) => $query->with([
-                'teams'=> ([
-                    'team'=> fn($query) => $query->where([['status','=','active']])->with([
-                        'department'=> fn($query) => $query->where([['status','=','active']])->pluck('id')
-                        ])
-                ])
-            ])
-        ])->get();
-
-        $List_conges_final = [];
-
-        foreach($result_gerants as $conge) {
-            $date_final = Carbon::parse($conge->date)->format('d M Y');
-            $conge['date'] = $date_final;
-            if(count($conge['histories']) != 0){
-                foreach ($conge['histories'] as $history) {
-                        $responsable = User::findOrFail($history['id_responsible']);
-                        $history['fullName'] = $responsable['last_name'] .' '. $responsable['first_name'];
-                        $date = Carbon::parse($history->created_at)->format('d M Y');
-                        $history['date'] = $date;
-                    if($history['id_responsible'] == $id_auth){
-                        array_push($List_conges_final,$conge);
-                    }
-                }
-            }
-        }
+        $result_gerants = HolidayHistory::getFilteredHolidays($id_auth);
+        $List_conges_final =HolidayHistory::processHistoriesForGerant($result_gerants, $id_auth);
+    
         return array_values(array_unique($List_conges_final));
     }
 
     public function getHistoriqueHoliday($id_auth)
     {
         $result = [];
-        // ken user auth = leader !!
-        $test_fonction = HolidayController::test_Leader_ChefDep_Gerant($id_auth);
+        $test_fonction = HolidayController::determineUserRoleStatus($id_auth);
 
-        if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 0){
-           $result = HolidayController::getHistoriqueHolidayLeader($id_auth);
+        if ($test_fonction['leader'] == 1) {
+            $result = array_merge($result, HolidayController::getHistoriqueHolidayLeader($id_auth));
+        } else if ($test_fonction['department_chief'] == 1) {
+            $result = array_merge($result, HolidayController::getHistoriqueHolidayChefDepartment($id_auth));
+        } else if ($test_fonction['gerant'] == 1) {
+            $result = array_merge($result, HolidayController::getHistoriqueHolidayGerant($id_auth));
         }
-        if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0){
-            $result = HolidayController::getHistoriqueHolidayChefDepartment($id_auth);
-        }
-        if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 1){
-            $result = HolidayController::getHistoriqueHolidayGerant($id_auth);
-        }
-        if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0){
-            $result_1 = HolidayController::getHistoriqueHolidayLeader($id_auth);
-            $result_2 = HolidayController::getHistoriqueHolidayChefDepartment($id_auth);
-            $result = array_values(array_unique(array_merge($result_1, $result_2)));
-        }
-         if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 1){
-             $result_1 = HolidayController::getHistoriqueHolidayGerant($id_auth);
-             $result_2 = HolidayController::getHistoriqueHolidayChefDepartment($id_auth);
-             $result = array_values(array_unique(array_merge($result_1, $result_2)));
 
-         }
-         if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 1){
-            $result_1 = HolidayController::getHistoriqueHolidayLeader($id_auth);
-            $result_2 = HolidayController::getHistoriqueHolidayGerant($id_auth);
-            $result = array_values(array_unique(array_merge($result_1, $result_2)));
-         }
-         if($test_fonction['leader'] == 1 && $test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 1){
-            $result_1 = HolidayController::getHistoriqueHolidayLeader($id_auth);
-            $result_2 = HolidayController::getHistoriqueHolidayGerant($id_auth);
-            $result_3 = HolidayController::getHistoriqueHolidayChefDepartment($id_auth);
-            $result = array_values(array_unique(array_merge($result_1, $result_2,$result_3)));
-         }
+        return $this->successResponse($result);
+    }
 
-        return $this->successResponse( $result );
+    public function initializeHolidayData($id)
+    {
+        $this->user = HolidayController::getUser($id);
+        $this->leader = HolidayController::getLeader($id);
+        $this->gerants = HolidayController::getAllGerants($id);
+        $this->department_chief = array_values(array_unique(HolidayController::getChiefDepartement($id)));
+    }
+
+    public function processGerant($id)
+    {
+       $this->initializeHolidayData($id);
+
+        // Vérifier si le responsable appartient à un département sans chef
+        if (count($this->department_chief) == 0) {
+            // Obtenir les IDs des gérants
+            $ids_gerants = HolidayController::get_ids_gerants();
+
+            // Vérifier si le responsable est un gérant
+            if (in_array($id, $ids_gerants)) {
+                $this->saveHolidayHistory($id, 3);
+                $gerants = $this->gerants;
+                $this->gerants = [];
+
+                // Filtrer les gérants en retirant celui avec l'ID donné
+                $gerants = collect($gerants)->filter(function ($g) use ($id) {
+                    return $g['id'] != $id;
+                })->all();
+                
+                $this->gerants = $gerants;
+            }
+
+            $conge = Holiday::findOrFail($this->conge['id']);
+
+            // Vérifier s'il n'y a plus de gérants à traiter
+            if (count($this->gerants) == 0) {
+                $conge->status = "Accepter";
+                $conge->level = 3;
+                $conge->save();
+            } else {
+                $conge->level = 3;
+                $conge->save();
+
+                $this->sendEmails(array_merge($this->gerants) , 'Leave request' , null, 'conge.InfoEmail');
+            }
+            $this->conge = $conge;
+        }
+    }
+
+    public function processLeader($id)
+    {
+        $this->initializeHolidayData($id);
+    
+        // Vérifier s'il y a des chefs de département associés à la demande de congé.
+        if (count($this->department_chief) > 0) {
+            $ids_leaders = HolidayController::get_ids_leaders($id);
+            
+            // Vérifier si le responsable actuel est parmi les leaders associés.
+            if (in_array($id, $ids_leaders)) {
+                $this->saveHolidayHistory($id , 1) ;
+    
+                // Filtrer les leaders pour exclure celui en cours de traitement.
+                $this->leader = array_filter($this->leader, function ($leader) use ($id) {
+                    return $leader['id'] != $id;
+                });
+            }
+    
+            $recipients = count($this->leader) == 0 ? $this->department_chief : $this->leader;
+    
+            $conge = Holiday::findOrFail($this->conge['id']);
+            $conge->level = count($this->leader) == 0 ? 2 : 1;
+            $conge->save();
+    
+            $this->sendEmails($recipients , 'Leave request' , null, 'conge.InfoEmail');
+            $this->conge = $conge;
+        }
+    }
+
+    private function saveHolidayHistory($id, $level)
+    {
+        $conge_history = new HolidayHistory();
+        $conge_history->id_responsible = $id;
+        $conge_history->status = "Accepter";
+        $conge_history->is_rejected_prov = 0;
+        $conge_history->is_archive = 0;
+        $conge_history->level = $level;
+        $conge_history->holiday_id = $this->conge['id'];
+
+        $conge_history->save();
     }
 
     public function ResponsableAddHoliday($id)
     {
-        $this->user = HolidayController::getUser($id);
-
-        $this->leader = HolidayController::getLeader($id);
-
-        $this->gerants = HolidayController::getAllGerants($id);
-
-        $this->department_chief = array_values(array_unique(HolidayController::getChiefDepartement($id)));
-
-        if(count($this->department_chief) == 0){
-
-            $ids_gerants = HolidayController::get_ids_gerants();
-            if(in_array($id,$ids_gerants)){
-                $conge_history = new HolidayHistory();
-                $conge_history->id_responsible = $id;
-                $conge_history->status = "Accepter";
-                $conge_history->is_rejected_prov = 0;
-                $conge_history->is_archive = 0;
-                $conge_history->level = 3;
-                $conge_history->holiday_id = $this->conge['id'];
-                $conge_history->save();
-
-                $gerants = $this->gerants;
-                $this->gerants = [];
-                foreach($gerants as $g) {
-                    if($g['id'] != $id){
-                      array_push($this->gerants,$g);
-                    }
-                }
-            }
-                $conge = Holiday::findOrFail($this->conge['id']);
-
-                if(count($this->gerants) == 0){
-                    $conge->status = "Accepter";
-                    $conge->level = 3;
-                    $conge->save();
-                }else{
-                    $conge->level = 3;
-                    $conge->save();
-                    Mail::send('conge.InfoEmail', ['user' => $this->user], function($message) {
-                        foreach ($this->gerants as $gerant) {
-                            $message->to($gerant['email']);
-                        }
-                        $message->subject('Leave request');
-                    });
-                }
-                $this->conge = $conge;
-        }else{
-                $ids_leaders = HolidayController::get_ids_leaders($id);
-
-                if(in_array($id,$ids_leaders)){
-                    $conge_history = new HolidayHistory();
-                    $conge_history->id_responsible = $id;
-                    $conge_history->status = "Accepter";
-                    $conge_history->is_rejected_prov = 0;
-                    $conge_history->is_archive = 0;
-                    $conge_history->level = 1;
-                    $conge_history->holiday_id = $this->conge['id'];
-                    $conge_history->save();
-
-                    $leader = $this->leader;
-                    $this->leader = [];
-                    foreach ($leader as $l) {
-                        if($l['id'] != $id){
-                        array_push($this->leader,$l);
-                        }
-                    }
-                }
-
-                if(count($this->leader) == 0){
-                    $conge = Holiday::findOrFail($this->conge['id']);
-                    $conge->level = 2;
-                    $conge->save();
-
-                    Mail::send('conge.InfoEmail', ['user' => $this->user], function($message) {
-                        foreach ($this->department_chief as $department_chief) {
-                           $message->to($department_chief['email']);
-                        }
-                        $message->subject('Leave request');
-                    });
-                    $this->conge = $conge;
-                }else{
-                    Mail::send('conge.InfoEmail', ['user' => $this->user], function($message) {
-                        foreach ($this->leader as $leader) {
-                          $message->to($leader['email']);
-                        }
-                        $message->subject('Leave request');
-                    });
-                }
-            }
+        $this->processGerant($id);
+        $this->processLeader($id);
     }
 
-    public function AddHoliday(Request $request,$id)
+    private function sendEmails($recipients, $subject, $date = null, $view )
+    {
+        Mail::send($view, ['user' => $this->user, 'dates' => $date], function ($message) use ($recipients, $subject) {
+            foreach ($recipients as $recipient) {
+                $message->to($recipient['email']);
+            }
+            $message->subject($subject);
+        });
+    }
+
+    public function AddHoliday(Request $request, $id)
     {
         $this->conge = new Holiday();
         $this->conge->type = $request->input('type');
@@ -653,15 +461,14 @@ class HolidayController extends Controller
 
         HolidayController::ResponsableAddHoliday($id);
 
-        return $this->successResponse( $this->conge);
+        return $this->successResponse($this->conge);
     }
 
-    
-    public function updateHoliday(Request $request,$id)
+    public function updateHoliday(Request $request, $id)
     {
         $this->conge = Holiday::findOrFail($id);
 
-        $conges_history = HolidayHistory::where('holiday_id','=',$id)->update(['is_rejected_prov' =>1,'is_archive'=> 1]);
+        $conges_history = HolidayHistory::where('holiday_id', '=', $id)->update(['is_rejected_prov' => 1, 'is_archive' => 1]);
 
         $this->conge->type = $request->input('type');
         $this->conge->raison = $request->input('raison');
@@ -672,17 +479,15 @@ class HolidayController extends Controller
 
         HolidayController::ResponsableAddHoliday($this->conge->user_id);
 
-        return $this->successResponse( $this->conge);
+        return $this->successResponse($this->conge);
     }
 
-    
     public function deleteHoliday($id)
     {
         $conge = Holiday::findOrFail($id);
-        $conge->is_deleted = 1;
-        $conge->save();
+        $conge->delete();
 
-        return $this->successResponse( $conge);
+        return $this->successResponse($conge);
     }
 
     public function AnnulerHoliday($id)
@@ -691,129 +496,95 @@ class HolidayController extends Controller
         $conge->status = "Annuler";
         $conge->save();
 
-        $this->result = "demande annuler";
-
         $this->user = User::findOrFail($conge->user_id);
 
-        if($conge->level == 1){
+        if ($conge->level == 1) {
             $this->list_responsable = HolidayController::getLeader($conge['user_id']);
-        }else if($conge->level == 2){
+        } else if ($conge->level == 2) {
             $this->list_responsable = HolidayController::getChiefDepartement($conge['user_id']);
-        }else if ($conge->level == 3){
+        } else if ($conge->level == 3) {
             $this->list_responsable = HolidayController::getAllGerants();
         }
 
-        if(count($this->list_responsable) != 0){
-            Mail::send('conge.AnnulerHoliday', ['conge' => $conge, 'user' =>  $this->user], function($message) {
-                foreach ($this->list_responsable as $resp) {
-                    $message->to($resp['email']);
-                }
-                $message->subject('Response following the cancellation of leaving');
-            });
+        if (count($this->list_responsable) != 0) {
+            $this->sendCancellationEmail($conge);
         }
 
-        return $this->successResponse( $conge);
+        return $this->successResponse($conge);
     }
 
-    public function RejetDefinitive(Request $request,$id_conge)
+    private function sendCancellationEmail($conge)
     {
-        $responsable = Auth::user();
-        // $responsable = User::where("id",1)->first();
+        Mail::send('conge.AnnulerHoliday', ['conge' => $conge, 'user' => $this->user], function ($message) {
+            foreach ($this->list_responsable as $resp) {
+                $message->to($resp['email']);
+            }
+            $message->subject('Response following the cancellation of leaving');
+        });
+    }
+
+    public function RejetDefinitive(Request $request, $id_conge)
+    {
+        // $responsable = Auth::user();
+        $responsable = User::where("id", 1)->first();
         $conge = Holiday::findOrFail($id_conge);
-        $conge->status = "Rejet definitif";
-        $conge->save();
+        HolidayHistory::updateHolidayStatus($id_conge, "Rejet definitif", $conge->level);
 
-        $conge_history = new HolidayHistory();
-        $conge_history->id_responsible = $responsable['id'];
-        $conge_history->status = "Rejet definitif";
-        $conge_history->is_rejected_prov = 0;
-        $conge_history->is_archive = 0;
-        $conge_history->raison_reject = $request->raison_reject;
-        $conge_history->level = $conge->level;
-        $conge_history->holiday_id = $id_conge;
-        $conge_history->save();
-
+        $conge_history = HolidayHistory::createHolidayHistory($responsable->id, "Rejet definitif", 0, 0, $conge->level, $id_conge, $request->raison_reject);
         $this->user = HolidayController::getUser($conge['user_id']);
 
-        $this->result = "Rejet definitive";
-
-        Mail::send('conge.RejetDefinitive', ['result' => $conge_history->raison_reject, 'conge'=> $conge, 'user' =>  $this->user[0]], function($message) {
+        Mail::send('conge.RejetDefinitive', ['result' => $conge_history->raison_reject, 'conge' => $conge, 'user' =>  $this->user[0]], function ($message) {
             $message->to($this->user[0]['email']);
             $message->subject('Request rejected');
         });
 
-        return $this->successResponse( $conge);
+        return $this->successResponse($conge);
     }
 
-    public function RejetProvisoire(Request $request,$id_conge)
+    public function RejetProvisoire(Request $request, $id_conge)
     {
-        $responsable = Auth::user();
-        // $responsable = User::where("id",1)->first();
+        // $responsable = Auth::user();
+        $responsable = User::where("id", 1)->first();
         $conge = Holiday::findOrFail($id_conge);
-        $conge->status = "Rejet provisoire";
-        $conge->save();
+        $this->updateHolidayStatus($id_conge, "Rejet provisoire", $conge->level);
 
-        $conge_history = new HolidayHistory();
-        $conge_history->id_responsible = $responsable['id'];
-        $conge_history->status = "Rejet provisoire";
-        $conge_history->is_archive = 0;
-        $conge_history->is_rejected_prov = 0;
-        $conge_history->raison_reject = $request->raison_reject;
-        $conge_history->level = $conge->level;
-        $conge_history->holiday_id = $id_conge;
-        $conge_history->save();
-
+        $conge_history =HolidayHistory::createHolidayHistory($responsable->id, "Rejet provisoire", 0, 0, $conge->level, $id_conge, $request->raison_reject);
         $this->user = User::findOrFail($conge->user_id);
 
-        $this->result = "Rejet provisoire";
-
-        Mail::send('conge.RejetProvisoire', ['result' => $conge_history->raison_reject, 'conge'=> $conge, 'user' =>  $this->user], function($message) {
+        Mail::send('conge.RejetProvisoire', ['result' => $conge_history->raison_reject, 'conge' => $conge, 'user' =>  $this->user], function ($message) {
             $message->to($this->user['email']);
             $message->subject('Provisionally refusal of your leave request');
         });
 
-        return $this->successResponse( $conge);
+        return $this->successResponse($conge);
     }
 
     public function acceptHolidayLeader($id_conge)
     {
         // $leader = Auth::user();
-        $leader = User::where("id",1)->first();
-
+        $leader = User::where("id", 1)->first();
+        $conge = Holiday::findOrFail($id_conge);
         $List_conges = [];
 
-        $conge = Holiday::findOrFail($id_conge);
-
         $ids_leaders = HolidayController::get_ids_leaders($conge['user_id']);
-        if(in_array($leader['id'],$ids_leaders)){
-            $conge_history = new HolidayHistory();
-            $conge_history->id_responsible = $leader['id'];
-            $conge_history->status = "Accepter";
-            $conge_history->is_rejected_prov = 0;
-            $conge_history->is_archive = 0;
-            $conge_history->level = 1;
-            $conge_history->holiday_id = $id_conge;
-            $conge_history->save();
+        if (in_array($leader['id'], $ids_leaders)) {
 
-            $conge->status="En cours";
-            $conge->save();
+            HolidayHistory::createHolidayHistory( $leader['id'], "Accepter", 0, 0, 1, $id_conge);
+            HolidayHistory::updateHolidayStatus($id_conge, "En cours");
 
-            $allHolidays = Holiday::where([['status','=','Envoye'],['level','=','1'],['id','=',$id_conge]])->orWhere([['status','=','En cours'],['level','=','1'],['id','=',$id_conge]])->with([
-                'histories' => fn($query) => $query->where([['is_rejected_prov', '=', 0],['level', '=', 1],['status','=','Accepter'],['holiday_id', '=', $id_conge]]),
-            ])->get();
+            $allHolidays = Holiday::where([['status', '=', 'Envoye'], ['level', '=', '1'], ['id', '=', $id_conge]])->orWhere([['status', '=', 'En cours'], ['level', '=', '1'], ['id', '=', $id_conge]])->with([
+                'histories' => fn ($query) => $query->where([['is_rejected_prov', '=', 0], ['level', '=', 1], ['status', '=', 'Accepter'], ['holiday_id', '=', $id_conge]]),
+            ])->get()->toArray();
 
-            if(count($allHolidays) != 0){
-                foreach($allHolidays as $conge) {
-                    array_push($List_conges,$conge);
-                }
-            }
+            $List_conges = array_merge($List_conges, $allHolidays);
+
             $Leaders = HolidayController::getLeader($conge['user_id']);
             $department_chief = HolidayController::getChiefDepartement($conge['user_id']);
             $this->user = HolidayController::getUser($conge['user_id']);
-            
+
             $LeadersArray = is_array($Leaders) ? $Leaders : [$Leaders];
             $departmentChiefArray = is_array($department_chief) ? $department_chief : [$department_chief];
-        
+
             $result = [];
 
             foreach ($LeadersArray as $item) {
@@ -821,7 +592,7 @@ class HolidayController extends Controller
                     $result[$item['id']] = $item;
                 }
             }
-            
+
             foreach ($departmentChiefArray as $item) {
                 if (isset($item['id'])) {
                     $result[$item['id']] = $item;
@@ -830,211 +601,162 @@ class HolidayController extends Controller
 
             $this->department_chief = array_values($result);
 
-            if(count($List_conges) != 0){
-                if(count($List_conges[0]['histories']) == count($Leaders) ){
+            if (count($List_conges) != 0) {
+                if (count($List_conges[0]['histories']) == count($Leaders)) {
                     $now = Carbon::now();
                     $conge = Holiday::where([
-                        ['id', '=',$id_conge],
+                        ['id', '=', $id_conge],
                         ['level', '=', 1],
-                    ])->update(['level' => 2,'date' => $now]);
+                    ])->update(['level' => 2, 'date' => $now]);
 
-                  
-                        if(count($this->department_chief) != 0){
-                            Mail::send('conge.InfoEmail', ['user' => $this->user], function($message) {
-                                foreach ($this->department_chief as $chef) {
-                                    $message->to($chef['email']);
-                                }
-                                $message->subject('Leave request');
-                            });
-                        }
+
+                    if (count($this->department_chief) != 0) {
+                        Mail::send('conge.InfoEmail', ['user' => $this->user], function ($message) {
+                            foreach ($this->department_chief as $chef) {
+                                $message->to($chef['email']);
+                            }
+                            $message->subject('Leave request');
+                        });
+                    }
                 }
             }
         }
 
-        return $this->successResponse( $List_conges);
+        return $List_conges;
     }
 
-   public function acceptHolidayChefDep($id_conge)
+    public function acceptHolidayChefDep($id_conge)
     {
         // $this->user = Auth::user();
-        $this->user = User::where("id",1)->first();
-
+        $this->user = User::where("id", 1)->first();
         $conge = Holiday::findOrFail($id_conge);
 
         $List_conges = [];
 
         $ids_department_chief = HolidayController::get_ids_department_chief($conge['user_id']);
 
-        if(in_array($this->user['id'],$ids_department_chief)){
-            $conge_history = new HolidayHistory();
-            $conge_history->id_responsible = $this->user['id'];
-            $conge_history->status = "Accepter";
-            $conge_history->is_rejected_prov = 0;
-            $conge_history->is_archive = 0;
-            $conge_history->level = 2;
-            $conge_history->holiday_id = $id_conge;
-            $conge_history->save();
-
-            $conge->status="En cours";
+        if (in_array($this->user['id'], $ids_department_chief)) {
+            HolidayHistory::createHolidayHistory( $this->user['id'], "Accepter", 0, 0, 2, $id_conge);
+          
+            $conge->status = "En cours";
             $conge->save();
 
-            $allHolidays = Holiday::where([['status','=','En cours'],['level','=','2'],['id','=',$id_conge]])->with([
-                'histories' => fn($query) => $query->where([['is_rejected_prov', '=', 0],['level', '=', 2],['status','=','Accepter'],['holiday_id', '=', $id_conge]]),
+            $allHolidays = Holiday::where([['status', '=', 'En cours'], ['level', '=', '2'], ['id', '=', $id_conge]])->with([
+                'histories' => fn ($query) => $query->where([['is_rejected_prov', '=', 0], ['level', '=', 2], ['status', '=', 'Accepter'], ['holiday_id', '=', $id_conge]]),
             ])->get();
 
-            if(count($allHolidays) != 0){
-                foreach($allHolidays as $conge) {
-                    array_push($List_conges,$conge);
+            if (count($allHolidays) != 0) {
+                foreach ($allHolidays as $conge) {
+                    array_push($List_conges, $conge);
                 }
             }
 
             $department_chief = HolidayController::getChiefDepartement($conge['user_id']);
             $gerants = HolidayController::getAllGerants();
             $this->user = HolidayController::getUser($conge['user_id']);
-            
+
             // Convertir en tableau si nécessaire
             $departmentChiefArray = is_array($department_chief) ? $department_chief : [$department_chief];
             $gerantsArray = is_array($gerants) ? $gerants : [$gerants];
-            
+
             // Fusionner les tableaux sans doublons en fonction de l'identifiant
             $result = [];
-            
+
             foreach ($gerantsArray as $item) {
                 if (isset($item['id'])) {
                     $result[$item['id']] = $item;
                 }
             }
-            
+
             foreach ($departmentChiefArray as $item) {
                 if (isset($item['id'])) {
                     $result[$item['id']] = $item;
                 }
             }
-            
+
             $this->gerants = array_values($result);
 
-            if(count($List_conges) != 0){
-                if(count($List_conges[0]['histories']) == count($department_chief)){
+            if (count($List_conges) != 0) {
+                if (count($List_conges[0]['histories']) == count($department_chief)) {
                     $now = Carbon::now();
                     $conge = Holiday::where([
-                        ['id', '=',$id_conge],
+                        ['id', '=', $id_conge],
                         ['level', '=', 2],
-                    ])->update(['level' => 3,'date' => $now]);
+                    ])->update(['level' => 3, 'date' => $now]);
 
-                    if(count($this->gerants) != 0){
-                        Mail::send('conge.InfoEmail', ['user' => $this->user], function($message) {
+                    if (count($this->gerants) != 0) {
+                        Mail::send('conge.InfoEmail', ['user' => $this->user], function ($message) {
                             foreach ($this->gerants as $gerant) {
                                 $message->to($gerant['email']);
                             }
                             $message->subject('Leave request');
                         });
                     }
-
                 }
             }
         }
-            return $this->successResponse( $List_conges);
+        return $List_conges;
     }
- 
+
     public function acceptHolidayGerant($id_conge)
     {
         // $leader = Auth::user();
-        $leader = User::where("id",1)->first();
-
-        $conge_history = new HolidayHistory();
-        $conge_history->id_responsible = $leader['id'];
-        $conge_history->status = "Accepter";
-        $conge_history->is_rejected_prov = 0;
-        $conge_history->is_archive = 0;
-        $conge_history->level = 3;
-        $conge_history->holiday_id = $id_conge;
-        $conge_history->save();
-
+        $leader = User::where("id", 2)->first();
+        HolidayHistory::createHolidayHistory( $leader['id'], "Accepter", 0, 0, 3, $id_conge);
+        HolidayHistory::updateHolidayStatus($id_conge, "En cours");
 
         $conge = Holiday::findOrFail($id_conge);
-        $conge->status="En cours";
-        $conge->save();
-
         $this->user = User::findOrFail($conge['user_id']);
-
         $List_conges = [];
 
-        $allHolidays = Holiday::where([['status','=','En cours'],['level','=',3],['id','=',$id_conge]])->with([
-            'histories' => fn($query) => $query->where([['is_rejected_prov', '=', 0],['level', '=', 3],['status','=','Accepter'],['holiday_id', '=', $id_conge]]),
+        $allHolidays = Holiday::where([['status', '=', 'En cours'], ['level', '=', 3], ['id', '=', $id_conge]])->with([
+            'histories' => fn ($query) => $query->where([['is_rejected_prov', '=', 0], ['level', '=', 3], ['status', '=', 'Accepter'], ['holiday_id', '=', $id_conge]]),
         ])->get();
 
-        if(count($allHolidays) != 0){
-            foreach($allHolidays as $conge) {
-                array_push($List_conges,$conge);
+        if (count($allHolidays) != 0) {
+            foreach ($allHolidays as $conge) {
+                array_push($List_conges, $conge);
             }
         }
 
         $gerants = HolidayController::getAllGerants();
 
-        if(count($List_conges) != 0){
-            if(count($List_conges[0]['histories']) == count($gerants) ){
+        if (count($List_conges) != 0) {
+            if (count($List_conges[0]['histories']) == count($gerants)) {
                 $conge = Holiday::where([
-                    ['id', '=',$id_conge],
+                    ['id', '=', $id_conge],
                     ['level', '=', 3],
                 ])->update(['status' => "Accepter"]);
 
-                $this->userPassHoliday = User::findOrFail($List_conges[0]['user_id']);
-                $this->result = "Accepter";
+               $this->user = User::findOrFail($List_conges[0]['user_id']);
 
-                Mail::send('conge.Acceptation', ['user' => $this->userPassHoliday, 'dates' => $List_conges[0]['dates']], function($message) {
+                Mail::send('conge.Acceptation', ['user' =>$this->user, 'dates' => $List_conges[0]['dates']], function ($message) {
                     $message->to($this->user['email']);
                     $message->subject('Acceptance of your leave request');
                 });
             }
         }
-        return $this->successResponse( $List_conges);
+        return $List_conges;
     }
- 
+
     public function accepterHoliday($id_conge)
     {
+        $this->user  = User::find(2);
+        $test_fonction = HolidayController::determineUserRoleStatus($this->user['id']);
         $result = [];
-        // $this->user = Auth::user();
-        $this->user  = User::where("id",1)->first();
 
-        $conge = Holiday::findOrFail($id_conge);
-
-        $test_fonction = HolidayController::test_Leader_ChefDep_Gerant($this->user['id']);
-
-        if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 0){
-           $result = HolidayController::acceptHolidayLeader($id_conge);
+        if ($test_fonction['leader'] == 1) {
+            $result = array_merge($result, HolidayController::acceptHolidayLeader($id_conge));
         }
-        if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0){
-            $result = HolidayController::acceptHolidayChefDep($id_conge);
+
+        if ($test_fonction['department_chief'] == 1) {
+            $result = array_merge($result, HolidayController::acceptHolidayChefDep($id_conge));
         }
-        if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 1){
-            $result = HolidayController::acceptHolidayGerant($id_conge);
+
+        if ($test_fonction['gerant'] == 1) {
+            $result = array_merge($result, HolidayController::acceptHolidayGerant($id_conge));
         }
-        if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0){
-            $result_1 = HolidayController::acceptHolidayLeader($id_conge);
-            $result_2 = HolidayController::acceptHolidayChefDep($id_conge);
-            $result = array_merge($result_1, $result_2);
-         }
 
-         if($test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 1 ){
-                $result_1 = HolidayController::acceptHolidayChefDep($id_conge);
-                $result_2 = HolidayController::acceptHolidayGerant($id_conge);
-                $result = array_merge($result_1, $result_2);
-         }
-
-         if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 0 && $test_fonction['gerant'] == 1){
-            $result_1 = HolidayController::acceptHolidayLeader($id_conge);
-            $result_2 = HolidayController::acceptHolidayGerant($id_conge);
-            $result = array_merge($result_1, $result_2);
-         }
-
-         if($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 1){
-            $result_1 = HolidayController::acceptHolidayLeader($id_conge);
-            $result_2 = HolidayController::acceptHolidayChefDep($id_conge);
-            $result_3 = HolidayController::acceptHolidayGerant($id_conge);
-            $result = array_merge($result_1, $result_2, $result_3);
-         }
-
-         return $this->successResponse( $result);
+        return $this->successResponse($result);
     }
-    
 }
