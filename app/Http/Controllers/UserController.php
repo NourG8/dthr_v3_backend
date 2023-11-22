@@ -11,12 +11,15 @@ use App\Models\UserContract;
 use App\Http\Requests\Users\UserRequest;
 use App\Http\Requests\Users\UserEditRequest;
 use App\Http\Requests\Contracts\OldContractRequest;
+use App\Http\Requests\Users\UserPermissionsRequest;
+use App\Http\Requests\Users\UserRolesRequest;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Arr;
-
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\TemplateProcessor;
 use Illuminate\Support\Facades\Storage;
@@ -96,6 +99,50 @@ class UserController extends Controller
         $userContract->update(['is_deleted' => 1]);
 
        return  $this->successResponse(['message' => 'user contract deleted successfully']);
+    }
+
+    public function assignRoles($id, UserRolesRequest $request)
+    {
+        // $this->authorize('store', Role::class);
+
+        $validatedData = $request->validated();
+
+        $user = User::findOrFail($id);
+        $roles = Role::whereIn('name', $validatedData['roles'])->get();
+
+        if ($request->type === 'attach') {
+            $user->assignRole($roles);
+        }
+
+        if ($request->type === 'sync') {
+            $user->syncRoles($roles);
+        }
+
+        $user->load('roles');
+
+        return $this->successResponse($user);
+    }
+
+    public function assignPermissions($id, UserPermissionsRequest $request)
+    {
+        // $this->authorize('store', Role::class);
+
+        $validatedData = $request->validated();
+
+        $user = User::findOrFail($id);
+        $permissions = Permission::whereIn('name', $validatedData['permissions'])->get();
+
+        if ($request->type === 'attach') {
+            $user->givePermissionTo($permissions);
+        }
+
+        if ($request->type === 'sync') {
+            $user->syncPermissions($permissions);
+        }
+
+        $user->load('permissions');
+
+        return $this->successResponse($user);
     }
 
     public function getContractsUserModel($id)

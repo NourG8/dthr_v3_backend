@@ -55,7 +55,7 @@
                                         <span
                                             style="display:inline-block; vertical-align:middle; margin:29px 0 26px; border-bottom:1px solid #cecece; width:100px;"></span>
                                         <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">
-                                        Hey <b> {{ $user['lastName']}} {{ $user['firstName']}} </b>  <br>
+                                        Hey <b> {{ $user['last_name']}} {{ $user['first_name']}} </b>  <br>
                                         You wish to benefit from the leave at the frequency of
                                             @foreach($dates as $index=>$date)
                                                 {{ $date }}
