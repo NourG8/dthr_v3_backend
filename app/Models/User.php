@@ -69,5 +69,71 @@ class User extends Authenticatable
         ->count();
     }
 
+    public static function get_ids_leaders($id)
+    {
+        $leader = self::getLeader($id);
+        return array_column($leader, 'id');
+    }
+
+    public static function get_ids_department_chief($id)
+    {
+        $department_chief = self::getChiefDepartement($id);
+        return array_column($department_chief, 'id');
+    }
+
+    public static function get_ids_gerants()
+    {
+        $gerant = self::getAllGerants();
+        $gerantArray = $gerant->toArray();
+        return array_column($gerantArray, 'id');
+    }
+
+    public static function getLeader($id_user)
+    {
+        $teamIds = TeamUser::where('user_id', $id_user)->pluck('team_id');
+
+        if ($teamIds->isEmpty()) {
+            return [];
+        }
+
+        $teamLeaders = TeamUser::whereIn('team_id', $teamIds)
+            ->where('is_leader', 1)
+            ->with('user')
+            ->get()
+            ->unique('user_id')
+            ->pluck('user');
+
+        return $teamLeaders->toArray();
+    }
+
+    public static function getChiefDepartement($id_user)
+    {
+        $userDepartments = User::where([
+            ['status', '=', 'active'],
+            ['id', '=', $id_user],
+        ])->with(['teams.team.department'])->first();
+
+        $chefDepartments = $userDepartments->teams->map(function ($team) {
+            $department = $team->team->department;
+            $chefDep = User::findOrFail($department->department_chief);
+            return $chefDep;
+        });
+
+        return $chefDepartments->all();
+    }
+
+    public static function getAllGerants()
+    {
+        $gerantUsers = Position::where([
+            ['status', '=', 'active'],
+            ['job_name', '=', 'Gérant']
+        ])->with(['users.user' => fn ($query) => $query->where('status', '=', 'active')])->get();
+
+        $gerants = $gerantUsers->flatMap(function ($position) {
+            return $position['users']->pluck('user');
+        });
+
+        return $gerants->unique()->values();
+    }
 
 }

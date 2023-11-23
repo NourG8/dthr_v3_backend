@@ -52,80 +52,80 @@ class HolidayController extends Controller
         return [$user, $sex, Carbon::now()->year];
     }
 
-    public static function getLeader($id_user)
-    {
-        $teamIds = TeamUser::where('user_id', $id_user)->pluck('team_id');
+    // public static function getLeader($id_user)
+    // {
+    //     $teamIds = TeamUser::where('user_id', $id_user)->pluck('team_id');
 
-        if ($teamIds->isEmpty()) {
-            return [];
-        }
+    //     if ($teamIds->isEmpty()) {
+    //         return [];
+    //     }
 
-        $teamLeaders = TeamUser::whereIn('team_id', $teamIds)
-            ->where('is_leader', 1)
-            ->with('user')
-            ->get()
-            ->unique('user_id')
-            ->pluck('user');
+    //     $teamLeaders = TeamUser::whereIn('team_id', $teamIds)
+    //         ->where('is_leader', 1)
+    //         ->with('user')
+    //         ->get()
+    //         ->unique('user_id')
+    //         ->pluck('user');
 
-        return $teamLeaders->toArray();
-    }
+    //     return $teamLeaders->toArray();
+    // }
 
-    public static function getChiefDepartement($id_user)
-    {
-        $userDepartments = User::where([
-            ['status', '=', 'active'],
-            ['id', '=', $id_user],
-        ])->with(['teams.team.department'])->first();
+    // public static function getChiefDepartement($id_user)
+    // {
+    //     $userDepartments = User::where([
+    //         ['status', '=', 'active'],
+    //         ['id', '=', $id_user],
+    //     ])->with(['teams.team.department'])->first();
 
-        $chefDepartments = $userDepartments->teams->map(function ($team) {
-            $department = $team->team->department;
-            $chefDep = User::findOrFail($department->department_chief);
-            return $chefDep;
-        });
+    //     $chefDepartments = $userDepartments->teams->map(function ($team) {
+    //         $department = $team->team->department;
+    //         $chefDep = User::findOrFail($department->department_chief);
+    //         return $chefDep;
+    //     });
 
-        return $chefDepartments->all();
-    }
+    //     return $chefDepartments->all();
+    // }
 
-    public static function getAllGerants()
-    {
-        $gerantUsers = Position::where([
-            ['status', '=', 'active'],
-            ['job_name', '=', 'Gérant']
-        ])->with(['users.user' => fn ($query) => $query->where('status', '=', 'active')])->get();
+    // public static function getAllGerants()
+    // {
+    //     $gerantUsers = Position::where([
+    //         ['status', '=', 'active'],
+    //         ['job_name', '=', 'Gérant']
+    //     ])->with(['users.user' => fn ($query) => $query->where('status', '=', 'active')])->get();
 
-        $gerants = $gerantUsers->flatMap(function ($position) {
-            return $position['users']->pluck('user');
-        });
+    //     $gerants = $gerantUsers->flatMap(function ($position) {
+    //         return $position['users']->pluck('user');
+    //     });
 
-        return $gerants->unique()->values();
-    }
+    //     return $gerants->unique()->values();
+    // }
 
-    public static function get_ids_leaders($id)
-    {
-        $leader = HolidayController::getLeader($id);
-        return array_column($leader, 'id');
-    }
+    // public static function get_ids_leaders($id)
+    // {
+    //     $leader = HolidayController::getLeader($id);
+    //     return array_column($leader, 'id');
+    // }
 
-    public static function get_ids_department_chief($id)
-    {
-        $department_chief = HolidayController::getChiefDepartement($id);
-        return array_column($department_chief, 'id');
-    }
+    // public static function get_ids_department_chief($id)
+    // {
+    //     $department_chief = HolidayController::getChiefDepartement($id);
+    //     return array_column($department_chief, 'id');
+    // }
 
-    public static function get_ids_gerants()
-    {
-        $gerant = HolidayController::getAllGerants();
-        $gerantArray = $gerant->toArray();
-        return array_column($gerantArray, 'id');
-    }
+    // public static function get_ids_gerants()
+    // {
+    //     $gerant = HolidayController::getAllGerants();
+    //     $gerantArray = $gerant->toArray();
+    //     return array_column($gerantArray, 'id');
+    // }
 
     public function getHolidayUser($id)
     {
         // Étape 1: Récupération des responsables de l'utilisateur spécifié
         $responsables = array_values(array_unique(array_merge(
-            HolidayController::get_ids_leaders($id),
-            HolidayController::get_ids_department_chief($id),
-            HolidayController::get_ids_gerants()
+            User::get_ids_leaders($id),
+            User::get_ids_department_chief($id),
+            User::get_ids_gerants()
         )));
     
         // Étape 2: Filtrage pour exclure l'utilisateur actuel des responsables
@@ -180,7 +180,7 @@ class HolidayController extends Controller
     public static function determineUserRoleStatus($id_user)
     {
         // Récupérer les leaders associés à l'utilisateur
-        $leaders = HolidayController::getLeader($id_user);
+        $leaders = User::getLeader($id_user);
         $leadersArray = collect($leaders)->toArray();
         $test_leader = in_array($id_user, array_column($leadersArray, 'id')) ? 1 : 0;
     
@@ -188,7 +188,7 @@ class HolidayController extends Controller
         $test_chefDep = Department::where('department_chief', '=', $id_user)->exists() ? 1 : 0;
     
         // Récupérer tous les gérants et vérifier si l'utilisateur est parmi eux
-        $gerants = HolidayController::getAllGerants();
+        $gerants = User::getAllGerants();
         $gerantsArray = collect($gerants)->toArray();
         $test_gerant = in_array($id_user, array_column($gerantsArray, 'id')) ? 1 : 0;
     
@@ -344,9 +344,9 @@ class HolidayController extends Controller
     public function initializeHolidayData($id)
     {
         $this->user = HolidayController::getUser($id);
-        $this->leader = HolidayController::getLeader($id);
-        $this->gerants = HolidayController::getAllGerants($id);
-        $this->department_chief = array_values(array_unique(HolidayController::getChiefDepartement($id)));
+        $this->leader = User::getLeader($id);
+        $this->gerants = User::getAllGerants($id);
+        $this->department_chief = array_values(array_unique(User::getChiefDepartement($id)));
     }
 
     public function processGerant($id)
@@ -356,7 +356,7 @@ class HolidayController extends Controller
         // Vérifier si le responsable appartient à un département sans chef
         if (count($this->department_chief) == 0) {
             // Obtenir les IDs des gérants
-            $ids_gerants = HolidayController::get_ids_gerants();
+            $ids_gerants = User::get_ids_gerants();
 
             // Vérifier si le responsable est un gérant
             if (in_array($id, $ids_gerants)) {
@@ -395,7 +395,7 @@ class HolidayController extends Controller
     
         // Vérifier s'il y a des chefs de département associés à la demande de congé.
         if (count($this->department_chief) > 0) {
-            $ids_leaders = HolidayController::get_ids_leaders($id);
+            $ids_leaders = User::get_ids_leaders($id);
             
             // Vérifier si le responsable actuel est parmi les leaders associés.
             if (in_array($id, $ids_leaders)) {
@@ -499,11 +499,11 @@ class HolidayController extends Controller
         $this->user = User::findOrFail($conge->user_id);
 
         if ($conge->level == 1) {
-            $this->list_responsable = HolidayController::getLeader($conge['user_id']);
+            $this->list_responsable = User::getLeader($conge['user_id']);
         } else if ($conge->level == 2) {
-            $this->list_responsable = HolidayController::getChiefDepartement($conge['user_id']);
+            $this->list_responsable = User::getChiefDepartement($conge['user_id']);
         } else if ($conge->level == 3) {
-            $this->list_responsable = HolidayController::getAllGerants();
+            $this->list_responsable = User::getAllGerants();
         }
 
         if (count($this->list_responsable) != 0) {
@@ -566,7 +566,7 @@ class HolidayController extends Controller
         $conge = Holiday::findOrFail($id_conge);
         $List_conges = [];
 
-        $ids_leaders = HolidayController::get_ids_leaders($conge['user_id']);
+        $ids_leaders = User::get_ids_leaders($conge['user_id']);
         if (in_array($leader['id'], $ids_leaders)) {
 
             HolidayHistory::createHolidayHistory( $leader['id'], "Accepter", 0, 0, 1, $id_conge);
@@ -578,9 +578,9 @@ class HolidayController extends Controller
 
             $List_conges = array_merge($List_conges, $allHolidays);
 
-            $Leaders = HolidayController::getLeader($conge['user_id']);
-            $department_chief = HolidayController::getChiefDepartement($conge['user_id']);
-            $this->user = HolidayController::getUser($conge['user_id']);
+            $Leaders = User::getLeader($conge['user_id']);
+            $department_chief = User::getChiefDepartement($conge['user_id']);
+            $this->user = User::getUser($conge['user_id']);
 
             $LeadersArray = is_array($Leaders) ? $Leaders : [$Leaders];
             $departmentChiefArray = is_array($department_chief) ? $department_chief : [$department_chief];
@@ -633,7 +633,7 @@ class HolidayController extends Controller
 
         $List_conges = [];
 
-        $ids_department_chief = HolidayController::get_ids_department_chief($conge['user_id']);
+        $ids_department_chief = User::get_ids_department_chief($conge['user_id']);
 
         if (in_array($this->user['id'], $ids_department_chief)) {
             HolidayHistory::createHolidayHistory( $this->user['id'], "Accepter", 0, 0, 2, $id_conge);
@@ -651,8 +651,8 @@ class HolidayController extends Controller
                 }
             }
 
-            $department_chief = HolidayController::getChiefDepartement($conge['user_id']);
-            $gerants = HolidayController::getAllGerants();
+            $department_chief = User::getChiefDepartement($conge['user_id']);
+            $gerants = User::getAllGerants();
             $this->user = HolidayController::getUser($conge['user_id']);
 
             // Convertir en tableau si nécessaire
@@ -719,7 +719,7 @@ class HolidayController extends Controller
             }
         }
 
-        $gerants = HolidayController::getAllGerants();
+        $gerants = User::getAllGerants();
 
         if (count($List_conges) != 0) {
             if (count($List_conges[0]['histories']) == count($gerants)) {
