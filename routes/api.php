@@ -12,6 +12,8 @@ use App\Http\Controllers\TeleworkController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\PermissionsController;
 use App\Http\Controllers\RolesPermissionsController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentTypeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -173,4 +175,28 @@ Route::group(['prefix' => 'roles'], function () {
   Route::post('/', [RolesPermissionsController::class, 'store']);
   Route::put('/{id}', [RolesPermissionsController::class, 'update']);
   Route::delete('/{id}', [RolesPermissionsController::class, 'destroy']);
+});
+
+// DOCUMENT
+Route::group(['prefix' => 'documents'], function () {
+  Route::get('/archive', [DocumentController::class, 'getAllArchiveDocuments']);
+  Route::put('/activate/{id}', [DocumentController::class, 'activateDocument']);
+  Route::put('deactivate/{id}', [DocumentController::class, 'deactivateDocument']);
+  Route::get('/', [DocumentController::class, 'index']);
+  Route::get('/{id}', [DocumentController::class, 'show']);
+  Route::post('/', [DocumentController::class, 'store']);
+  Route::put('/{id}', [DocumentController::class, 'update']);
+  Route::delete('/{id}', [DocumentController::class, 'destroy']);
+});
+
+// DOCUMENT TYPE
+Route::group(['prefix' => 'documents-type'], function () {
+  Route::get('/archive', [DocumentTypeController::class, 'getAllArchiveDocuments']);
+  Route::put('/activate/{id}', [DocumentTypeController::class, 'activateDocument']);
+  Route::put('deactivate/{id}', [DocumentTypeController::class, 'deactivateDocument']);
+  Route::get('/', [DocumentTypeController::class, 'index']);
+  Route::get('/{id}', [DocumentTypeController::class, 'show']);
+  Route::post('/', [DocumentTypeController::class, 'store']);
+  Route::put('/{id}', [DocumentTypeController::class, 'update']);
+  Route::delete('/{id}', [DocumentTypeController::class, 'destroy']);
 });
