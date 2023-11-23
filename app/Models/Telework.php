@@ -12,6 +12,10 @@ class Telework extends Model
 
     // protected $with = ['histories'];
 
+    protected $casts = [
+        'date' => 'json'
+    ];
+
     protected $guarded = [];
 
     public function user()
