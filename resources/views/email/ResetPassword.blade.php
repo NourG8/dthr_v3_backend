@@ -47,7 +47,7 @@
                                         <span
                                             style="display:inline-block; vertical-align:middle; margin:29px 0 26px; border-bottom:1px solid #cecece; width:100px;"></span>
                                         <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">
-                                            Hello <b>"{{ $user['lastName'] }} {{ $user['firstName'] }}"</b>,<br>
+                                            Hello <b>"{{ $user['last_name'] }} {{ $user['first_name'] }}"</b>,<br>
                                             We wanted to inform you that the administrator of <b>"DIGITRENDS"</b> has changed your password.<br>
                                             New password : <b> {{ $New_password }} </b><br>
                                             For security reasons, please change your password that we sent.

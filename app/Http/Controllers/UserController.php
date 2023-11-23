@@ -296,11 +296,11 @@ class UserController extends Controller
     //             $user = json_decode($user_result, true);
     //             $file_name = $contract[0]['file'];
     //             $type = $contract[0]['type'];
-    //             $name = $user[0]['lastName'] ."_" .$user[0]['firstName'] ;
+    //             $name = $user[0]['last_name'] ."_" .$user[0]['first_name'] ;
 
     //             $template = "contract\\" .$file_name;
     //             $templateProcessor = new TemplateProcessor($template);
-    //             $templateProcessor->setValue('firstName', $user[0]['firstName']);
+    //             $templateProcessor->setValue('first_name', $user[0]['first_name']);
     //             $user_sex = '';
     //             if($user[0]['sex'] == 'Women'){
     //                 if($user[0]['FamilySituation'] == 'Single'){
@@ -312,7 +312,7 @@ class UserController extends Controller
     //                 $user_sex = "Mr";
     //             }
     //             $templateProcessor->setValue('sex', $user_sex);
-    //             $templateProcessor->setValue('lastName', $user[0]['lastName']);
+    //             $templateProcessor->setValue('last_name', $user[0]['last_name']);
     //             $templateProcessor->setValue('dateBirth', $user[0]['dateBirth']);
     //             $templateProcessor->setValue('placeBirth', $user[0]['placeBirth']);
     //             $templateProcessor->setValue('cin', $user[0]['cin']);
@@ -429,12 +429,12 @@ class UserController extends Controller
     //             $user = json_decode($user_result, true);
     //             $file_name = $contract[0]['file'];
     //             $type = $contract[0]['type'];
-    //             $name = $user[0]['lastName'] ."_" .$user[0]['firstName'] ;
+    //             $name = $user[0]['last_name'] ."_" .$user[0]['first_name'] ;
 
 
     //             $template = "contract\\" .$file_name;
     //             $templateProcessor = new TemplateProcessor($template);
-    //             $templateProcessor->setValue('firstName', $user[0]['firstName']);
+    //             $templateProcessor->setValue('first_name', $user[0]['first_name']);
     //             $user_sex = '';
     //             if($user[0]['sex'] == 'Women'){
     //                 if($user[0]['FamilySituation'] == 'Single'){
@@ -446,7 +446,7 @@ class UserController extends Controller
     //                 $user_sex = "Mr";
     //             }
     //             $templateProcessor->setValue('sex', $user_sex);
-    //             $templateProcessor->setValue('lastName', $user[0]['lastName']);
+    //             $templateProcessor->setValue('last_name', $user[0]['last_name']);
     //             $templateProcessor->setValue('dateBirth', $user[0]['dateBirth']);
     //             $templateProcessor->setValue('placeBirth', $user[0]['placeBirth']);
     //             $templateProcessor->setValue('cin', $user[0]['cin']);
@@ -510,8 +510,8 @@ class UserController extends Controller
     // public function editUserIntern(Request $request,$id)
     // {
     //     $user = User::findOrFail($id);
-    //     $user->lastName= $request->lastName;
-    //     $user->firstName= $request->firstName;
+    //     $user->last_name= $request->last_name;
+    //     $user->first_name= $request->first_name;
     //     $user->phone = $request->phone;
     //     $user->address = $request->address;
     //     $user->FamilySituation = $request->FamilySituation;
@@ -549,7 +549,7 @@ class UserController extends Controller
     //     $user = DB::table('position_users')
     //     ->leftJoin('positions', 'position_users.position_id', '=', 'positions.id')
     //     ->leftJoin('users', 'position_users.user_id', '=', 'users.id')
-    //     ->select('users.id','users.firstName','users.lastName')
+    //     ->select('users.id','users.first_name','users.last_name')
     //     ->where('position_id',$id_pos)
     //     ->get();
     //      return response()->json($user);
@@ -624,11 +624,11 @@ class UserController extends Controller
 
     //             $file_name = $contract[0]['file'];
     //             $type = $contract[0]['type'];
-    //             $name = $user[0]['lastName'] ."_" .$user[0]['firstName'] ;
+    //             $name = $user[0]['last_name'] ."_" .$user[0]['first_name'] ;
 
     //             $template = "contract\\" .$file_name;
     //             $templateProcessor = new TemplateProcessor($template);
-    //             $templateProcessor->setValue('firstName', $user[0]['firstName']);
+    //             $templateProcessor->setValue('first_name', $user[0]['first_name']);
     //             $user_sex = '';
     //             if($user[0]['sex'] == 'Women'){
     //                 if($user[0]['FamilySituation'] == 'Single'){
@@ -640,7 +640,7 @@ class UserController extends Controller
     //                 $user_sex = "Mr";
     //             }
     //             $templateProcessor->setValue('sex', $user_sex);
-    //             $templateProcessor->setValue('lastName', $user[0]['lastName']);
+    //             $templateProcessor->setValue('last_name', $user[0]['last_name']);
     //             $templateProcessor->setValue('dateBirth', $user[0]['dateBirth']);
     //             $templateProcessor->setValue('placeBirth', $user[0]['placeBirth']);
     //             $templateProcessor->setValue('cin', $user[0]['cin']);
