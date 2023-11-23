@@ -24,7 +24,7 @@ class TeleworkController extends Controller
     private $userPassTelework = null;
 
     private $leader = null;
-    private $chef_dep = null;
+    private $department_chief = null;
     private $gerants = null;
     private $telework = null;
     private $list_responsable = [];
@@ -34,74 +34,68 @@ class TeleworkController extends Controller
     {
         $result = [];
         // ken user auth = leader !!
-        $test_fonction = HolidayController::test_Leader_ChefDep_Gerant($id_auth);
+        $test_fonction = HolidayController::determineUserRoleStatus($id_auth);
 
         if ($test_fonction['leader'] == 1) {
-            $result = TeleworkController::getAllTeleworkLeader($id_auth);
-        }
-
-        if ($test_fonction['department_chief'] == 1) {
-            $result = TeleworkController::getAllTeleworkChefDepartment($id_auth);
-        }
-        if ($test_fonction['gerant'] == 1) {
-            $result = TeleworkController::getAllTeleworkGerant($id_auth);
-        }
-
-        if ($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 1) {
-            $result_1 = TeleworkController::getAllTeleworkLeader($id_auth);
-            $result_2 = TeleworkController::getAllTeleworkChefDepartment($id_auth);
-            $result = array_merge($result_1, $result_2);
-        }
-
-        if ($test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 1) {
-            $result_1 = TeleworkController::getAllTeleworkGerant($id_auth);
-            $result_2 = TeleworkController::getAllTeleworkChefDepartment($id_auth);
-            $result = array_merge($result_1, $result_2);
-        }
-
-        if ($test_fonction['leader'] == 1 && $test_fonction['gerant'] == 1) {
-            $result_1 = TeleworkController::getAllTeleworkLeader($id_auth);
-            $result_2 = TeleworkController::getAllTeleworkGerant($id_auth);
-            $result = array_merge($result_1, $result_2);
-        }
-
-        if ($test_fonction['leader'] == 1 && $test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 1) {
-            $result_1 = TeleworkController::getAllTeleworkLeader($id_auth);
-            $result_2 = TeleworkController::getAllTeleworkGerant($id_auth);
-            $result_3 = TeleworkController::getAllTeleworkChefDepartment($id_auth);
-            $result = array_merge($result_1, $result_2, $result_3);
+            $result = array_merge($result, TeleworkController::getAllTeleworkLeader($id_auth));
+        } else if ($test_fonction['department_chief'] == 1) {
+            $result = array_merge($result, TeleworkController::getAllTeleworkChefDepartment($id_auth));
+        } else if ($test_fonction['gerant'] == 1) {
+            $result = array_merge($result, TeleworkController::getAllTeleworkGerant($id_auth));
         }
 
         return $this->successResponse($result);
     }
 
-    public function ResponsableAddTelework($id)
+    public function initializeHolidayData($id)
     {
         $this->user = HolidayController::getUser($id);
-        $this->leader = HolidayController::getLeader($id);
-        $this->gerants = HolidayController::getAllGerants($id);
-        $this->chef_dep = array_values(array_unique(HolidayController::getChiefDepartement($id)));
+        $this->leader = User::getLeader($id);
+        $this->gerants = User::getAllGerants($id);
+        $this->department_chief = array_values(array_unique(User::getChiefDepartement($id)));
+    }
+    
+    private function saveHolidayHistory($id, $level)
+    {
+        $tel_history = new teleworkHistory();
+        $tel_history->id_responsible = $id;
+        $tel_history->status = "Accepter";
+        $tel_history->is_rejected_prov = 0;
+        $tel_history->level = $level;
+        $tel_history->is_archive = 0;
+        $tel_history->telework_id = $this->telework['id'];
 
-        if (count($this->chef_dep) == 0) {
-            $ids_gerants = TeleworkController::get_ids_gerants($id);
+        $tel_history->save();
+    }
+
+    private function sendEmails($recipients, $subject, $date = null, $view )
+    {
+        Mail::send($view, ['user' => $this->user, 'dates' => $date], function ($message) use ($recipients, $subject) {
+            foreach ($recipients as $recipient) {
+                $message->to($recipient['email']);
+            }
+            $message->subject($subject);
+        });
+    }
+
+    public function processGerant($id)
+    {
+        $this->initializeHolidayData($id);
+        
+        if (count($this->department_chief) == 0) {
+            $ids_gerants = User::get_ids_gerants($id);
 
             if (in_array($id, $ids_gerants)) {
-                $tel_history = new teleworkHistory();
-                $tel_history->id_responsible = $id;
-                $tel_history->status = "Accepter";
-                $tel_history->is_rejected_prov = 0;
-                $tel_history->level = 3;
-                $tel_history->is_archive = 0;
-                $tel_history->telework_id = $this->telework['id'];
-                $tel_history->save();
+                $this->saveHolidayHistory($id , 3) ;
 
                 $gerants = $this->gerants;
                 $this->gerants = [];
-                foreach ($gerants as $g) {
-                    if ($g['id'] != $id) {
-                        array_push($this->gerants, $g);
-                    }
-                }
+
+                $gerants = collect($gerants)->filter(function ($g) use ($id) {
+                    return $g['id'] != $id;
+                })->all();
+
+                $this->gerants = $gerants;
             }
 
             $tele = Telework::findOrFail($this->telework['id']);
@@ -113,99 +107,55 @@ class TeleworkController extends Controller
             } else {
                 $tele->level = 3;
                 $tele->save();
-                Mail::send('telework.InfoEmail', ['user' => $this->user], function ($message) {
-                    foreach ($this->gerants as $gerant) {
-                        $message->to($gerant['email']);
-                    }
-                    $message->subject('Remote work request');
-                });
+
+                $this->sendEmails(array_merge($this->gerants) , 'Remote work request' , null, 'telework.InfoEmail');
             }
             $this->telework = $tele;
-        } else {
-            $ids_leaders = TeleworkController::get_ids_leaders($id);
+        }
+    }
+
+    public function processLeader($id)
+    {
+       $this->initializeHolidayData($id);
+
+        // Vérifier si le responsable appartient à un département sans chef
+        if (count($this->department_chief) > 0) {
+            $ids_leaders = User::get_ids_leaders($id);
 
             if (in_array($id, $ids_leaders)) {
-                $tel_history = new teleworkHistory();
-                $tel_history->id_responsible = $id;
-                $tel_history->status = "Accepter";
-                $tel_history->is_rejected_prov = 0;
-                $tel_history->level = 1;
-                $tel_history->is_archive = 0;
-                $tel_history->telework_id = $this->telework['id'];
-                $tel_history->save();
-
-                $leader = $this->leader;
-                $this->leader = [];
-                foreach ($leader as $l) {
-                    if ($l['id'] != $id) {
-                        array_push($this->leader, $l);
-                    }
-                }
-            }
-
-            if (count($this->leader) == 0) {
-                $tele = Telework::findOrFail($this->telework['id']);
-                $tele->level = 2;
-                $tele->save();
-
-                Mail::send('telework.InfoEmail', ['user' => $this->user], function ($message) {
-                    foreach ($this->chef_dep as $chef_dep) {
-                        $message->to($chef_dep['email']);
-                    }
-                    $message->subject('Remote work request');
-                });
-                $this->telework = $tele;
-            } else {
-                Mail::send('telework.InfoEmail', ['user' => $this->user], function ($message) {
-                    foreach ($this->leader as $leader) {
-                        $message->to($leader['email']);
-                    }
-                    $message->subject('Remote work request');
+                $this->saveHolidayHistory($id , 1) ;
+                $this->leader = array_filter($this->leader, function ($leader) use ($id) {
+                    return $leader['id'] != $id;
                 });
             }
+
+            $recipients = count($this->leader) == 0 ? $this->department_chief : $this->leader;
+    
+            $tele = Telework::findOrFail($this->telework['id']);
+            $tele->level = count($this->leader) == 0 ? 2 : 1;
+            $tele->save();
+
+            $this->sendEmails($recipients , 'Remote work request' , null, 'telework.InfoEmail');
+
+            $this->telework = $tele;
         }
     }
 
-    public function get_ids_leaders($id)
+    public function ResponsableAddTelework($id)
     {
-        $leader = HolidayController::getLeader($id);
-        $id_leaders = [];
-        foreach ($leader as $l) {
-            array_push($id_leaders, $l['id']);
-        }
-        return $id_leaders;
-    }
-
-    public function get_ids_gerants($id)
-    {
-        $gerant = HolidayController::getAllGerants($id);
-        $id_gerants = [];
-        foreach ($gerant as $g) {
-            array_push($id_gerants, $g['id']);
-        }
-        return $id_gerants;
-    }
-
-    public function get_ids_chef_dep($id)
-    {
-        $chef_dep = array_values(array_unique(HolidayController::getChiefDepartement($id)));
-        $id_chef_dep = [];
-        foreach ($chef_dep as $c) {
-            array_push($id_chef_dep, $c['id']);
-        }
-        return $id_chef_dep;
+        $this->processGerant($id);
+        $this->processLeader($id);  
     }
 
     public function AddTelework(TeleworkRequest $request)
     {
         // $user = Auth::user();
-        $user = User::where('id', 4)->first();
-
+        $user = User::where('id', 6)->first();
         $validatedData = $request->validated();
-
+        
         $this->telework = Telework::create([
-            'raison' => $validatedData['raison'],
-            'date' =>   $validatedData['date'],
+            'raison' => $validatedData ['raison'],
+            'date' =>   $validatedData ['date'],
             'level' => 1,
             'status' => "Envoyé",
             'user_id' => $user->id,
@@ -251,13 +201,8 @@ class TeleworkController extends Controller
 
     public function destroyTelework($id)
     {
-        $telework = Telework::find($id);
-
-        if (!$telework) {
-            return $this->errorResponse("Telework not found", 404);
-        }
-
-        $telework->update(['is_deleted' => 1]);
+        $telework = Telework::findOrFail($id);
+        $telework->delete();
 
         return $this->successResponse($telework);
     }
@@ -265,7 +210,7 @@ class TeleworkController extends Controller
     //nbre de leader pour chaque user
     public function getNbLeaders($id)
     {
-        $leaders = HolidayController::getLeader($id);
+        $leaders = User::getLeader($id);
         $nbLeaders = [];
         foreach ($leaders as $leader) {
             if ($leader['id'] != $id) {
@@ -277,7 +222,7 @@ class TeleworkController extends Controller
 
     public function getNbChefDep($id)
     {
-        $chefDep = HolidayController::getChiefDepartement($id);
+        $chefDep = User::getChiefDepartement($id);
         $nbChefDep = [];
         foreach ($chefDep as $chef) {
             if ($chef['id'] != $id) {
@@ -289,7 +234,7 @@ class TeleworkController extends Controller
 
     public function getNbGerants()
     {
-        $gerants = HolidayController::getAllGerants();
+        $gerants = User::getAllGerants();
         return count($gerants);
     }
 
@@ -300,9 +245,9 @@ class TeleworkController extends Controller
         $this->user = User::where('id', 1)->first();
 
         $telework = Telework::findOrFail($id);
-        $ids_chef_dep = TeleworkController::get_ids_chef_dep($telework['user_id']);
+        $ids_department_chief = User::get_ids_department_chief($telework['user_id']);
 
-        if (in_array($this->user['id'], $ids_chef_dep)) {
+        if (in_array($this->user['id'], $ids_department_chief)) {
             teleworkHistory::create([
                 'is_rejected_prov' => 0,
                 'level' => 2,
@@ -323,12 +268,12 @@ class TeleworkController extends Controller
                     array_push($List_teltravail, $telework);
                 }
             }
-            $chef_dep = HolidayController::getChiefDepartement($telework['user_id']);
-            $gerants = HolidayController::getAllGerants();
+            $department_chief = User::getChiefDepartement($telework['user_id']);
+            $gerants = User::getAllGerants();
             $this->user = HolidayController::getUser($telework['user_id']);
 
             $gerantsArray = is_array($gerants) ? $gerants : [$gerants];
-            $departmentChiefArray = is_array($chef_dep) ? $chef_dep : [$chef_dep];
+            $departmentChiefArray = is_array($department_chief) ? $department_chief : [$department_chief];
 
             $result = [];
 
@@ -345,10 +290,8 @@ class TeleworkController extends Controller
 
             $this->gerants = array_values($result);
 
-            // $this->gerants = array_diff($gerants, $chef_dep);
-
             if (count($List_teltravail) > 0) {
-                if (count($List_teltravail[0]['histories']) == count($chef_dep)) {
+                if (count($List_teltravail[0]['histories']) == count($department_chief)) {
                     $teleworks = Telework::where([
                         ['id', '=', $id],
                         ['level', '=', 2],
@@ -399,7 +342,7 @@ class TeleworkController extends Controller
             }
         }
 
-        $gerants = HolidayController::getAllGerants();
+        $gerants = User::getAllGerants();
         if (count($List_teltravail) != 0) {
             if (count($List_teltravail[0]['histories']) == count($gerants)) {
                 $telework = Telework::where([
@@ -433,7 +376,7 @@ class TeleworkController extends Controller
 
         $List_teleworks = [];
         $telework = Telework::findOrFail($id_telework);
-        $ids_leaders = HolidayController::get_ids_leaders($telework['user_id']);
+        $ids_leaders = User::get_ids_leaders($telework['user_id']);
 
         if (in_array($leader['id'], $ids_leaders)) {
             teleworkHistory::create([
@@ -457,11 +400,11 @@ class TeleworkController extends Controller
                 }
             }
 
-            $Leaders = HolidayController::getLeader($telework['user_id']);
-            $chef_dep = HolidayController::getChiefDepartement($telework['user_id']);
+            $Leaders = User::getLeader($telework['user_id']);
+            $department_chief = User::getChiefDepartement($telework['user_id']);
             $this->user = HolidayController::getUser($telework['user_id']);
             $LeadersArray = is_array($Leaders) ? $Leaders : [$Leaders];
-            $departmentChiefArray = is_array($chef_dep) ? $chef_dep : [$chef_dep];
+            $departmentChiefArray = is_array($department_chief) ? $department_chief : [$department_chief];
 
             $result = [];
 
@@ -477,7 +420,7 @@ class TeleworkController extends Controller
                 }
             }
 
-            $this->chef_dep = array_values($result);
+            $this->department_chief = array_values($result);
 
             if (count($List_teleworks) != 0) {
                 if (count($List_teleworks[0]['histories']) == count($Leaders)) {
@@ -486,9 +429,9 @@ class TeleworkController extends Controller
                         ['level', '=', 1],
                     ])->update(['level' => 2]);
 
-                    if (count($this->chef_dep) != 0) {
+                    if (count($this->department_chief) != 0) {
                         Mail::send('telework.InfoEmail', ['user' => $this->user], function ($message) {
-                            foreach ($this->chef_dep as $chef) {
+                            foreach ($this->department_chief as $chef) {
                                 $message->to($chef['email']);
                             }
                             $message->subject('Leave request');
@@ -505,42 +448,18 @@ class TeleworkController extends Controller
         $result = [];
         // $this->user = Auth::user();
         $this->user = User::where('id', 1)->first();
-        //l user eli authentifié 9ade 3andou men leader w gerant w chef
-        $test_fonction = HolidayController::test_Leader_ChefDep_Gerant($this->user['id']);
+        $test_fonction = HolidayController::determineUserRoleStatus($this->user['id']);
 
-        if ($test_fonction['leader'] == 1  && $test_fonction['gerant'] == 0 && $test_fonction['department_chief'] == 0) {
-            $result = TeleworkController::acceptTelLeader($id);
-        }
-        if ($test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0 && $test_fonction['leader'] == 0) {
-            $result = TeleworkController::acceptTelChefDep($id);
-        }
-        if ($test_fonction['gerant'] == 1 && $test_fonction['leader'] == 0 && $test_fonction['department_chief'] == 0) {
-            $result = TeleworkController::acceptTelGerant($id);
+        if ($test_fonction['leader'] == 1) {
+            $result = array_merge($result, TeleworkController::acceptTelLeader($id));
         }
 
-        if ($test_fonction['leader'] == 1 && $test_fonction['department_chief'] == 1 && $test_fonction['gerant'] == 0) {
-            $result_1 = TeleworkController::acceptTelLeader($id);
-            $result_2 = TeleworkController::acceptTelChefDep($id);
-            $result = array_merge($result_1, $result_2);
+        if ($test_fonction['department_chief'] == 1) {
+            $result = array_merge($result, TeleworkController::acceptTelChefDep($id));
         }
 
-        if ($test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 1 && $test_fonction['leader'] == 0) {
-            $result_1 = TeleworkController::acceptTelGerant($id);
-            $result_2 = TeleworkController::acceptTelChefDep($id);
-            $result = array_merge($result_1, $result_2);
-        }
-
-        if ($test_fonction['leader'] == 1 && $test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 0) {
-            $result_1 = TeleworkController::acceptTelLeader($id);
-            $result_2 = TeleworkController::acceptTelGerant($id);
-            $result = array_merge($result_1, $result_2);
-        }
-
-        if ($test_fonction['leader'] == 1 && $test_fonction['gerant'] == 1 && $test_fonction['department_chief'] == 1) {
-            $result_1 = TeleworkController::acceptTelLeader($id);
-            $result_2 = TeleworkController::acceptTelGerant($id);
-            $result_3 = TeleworkController::acceptTelChefDep($id);
-            $result = array_merge($result_1, $result_2, $result_3);
+        if ($test_fonction['gerant'] == 1) {
+            $result = array_merge($result, TeleworkController::acceptTelGerant($id));
         }
 
         return $this->successResponse( $result);
@@ -548,15 +467,10 @@ class TeleworkController extends Controller
 
     public function refuseTeletravail(Request $request, $id)
     {
-        $telework = Telework::find($id);
-
-        if (!$telework) {
-            return $this->errorResponse("error", 404);
-        }
-
+        $telework = Telework::findOrFail($id);
         $telework->update(['status' => "Refusé"]);
 
-        $user = User::find($telework->user_id);
+        $user = User::findOrFail($telework->user_id);
         $email = $user->email;
 
         Mail::send('email.responseRefuse', ['user' => $user, 'email' => $email], function ($message) use ($email) {
@@ -573,20 +487,14 @@ class TeleworkController extends Controller
     {
         // TeleworkControlle::getNbLeaders()
         $List_teleworks = [];
-        // afficher list pour le responsable !!!!
-        $List_team = TeamUser::where([['user_id', '=', $id_auth], ['is_leader', '=', 1]])->get();
         $team_id = [];
-        // return id team eli appartient liha el id_auth kenou leader ala equipe !!!
-        if (count($List_team) != 0) {
-            foreach ($List_team as $team) {
-                array_push($team_id, $team['team_id']);
-            }
-        } else {
-            $team_id =  null;
-        }
+
+        $team_id = TeamUser::where('user_id', $id_auth)
+        ->where('is_leader', 1)
+        ->pluck('team_id')
+        ->toArray();
 
         // $user = Auth::user();
-        // $user = User::where('id',1)->first();
         $teleworks = Telework::where([['level', '=', '1'], ['status', '=', 'En cours']])
             ->orwhere([['level', '=', '1'], ['status', '=', 'Envoyé']])
             ->with(['histories'])->whereHas('histories')->with(['user'])
@@ -727,11 +635,11 @@ class TeleworkController extends Controller
         $this->user = User::findOrFail($telework->user_id);
 
         if ($telework->level == 1) {
-            $this->list_responsable = HolidayController::getLeader($telework['user_id']);
+            $this->list_responsable = User::getLeader($telework['user_id']);
         } else if ($telework->level == 2) {
-            $this->list_responsable = HolidayController::getChiefDepartement($telework['user_id']);
+            $this->list_responsable = User::getChiefDepartement($telework['user_id']);
         } else if ($telework->level == 3) {
-            $this->list_responsable = HolidayController::getAllGerants();
+            $this->list_responsable = User::getAllGerants();
         }
 
         if (count($this->list_responsable) != 0) {
@@ -810,9 +718,9 @@ class TeleworkController extends Controller
 
     public function getTeleworkUser($id)
     {
-        $nb_leaders = TeleworkController::get_ids_leaders($id);
-        $nb_chef = TeleworkController::get_ids_chef_dep($id);
-        $nb_gerants = TeleworkController::get_ids_gerants($id);
+        $nb_leaders = User::get_ids_leaders($id);
+        $nb_chef = User::get_ids_department_chief($id);
+        $nb_gerants = User::get_ids_gerants($id);
 
         $responsable_list = array_values(array_unique(array_merge($nb_leaders, $nb_chef, $nb_gerants)));
         $responsable = [];
@@ -868,9 +776,9 @@ class TeleworkController extends Controller
     //Historiques de chaque demande 
     public function getTeleworkUserHistories($id)
     {
-        $nb_leaders = TeleworkController::get_ids_leaders($id);
-        $nb_chef = TeleworkController::get_ids_chef_dep($id);
-        $nb_gerants = TeleworkController::get_ids_gerants($id);
+        $nb_leaders = User::get_ids_leaders($id);
+        $nb_chef = User::get_ids_department_chief($id);
+        $nb_gerants = User::get_ids_gerants($id);
 
         $responsable_list = array_values(array_unique(array_merge($nb_leaders, $nb_chef, $nb_gerants)));
         $responsable = [];
@@ -1065,7 +973,7 @@ class TeleworkController extends Controller
     {
         $result = [];
         // ken user auth = leader !!
-        $test_fonction = HolidayController::test_Leader_ChefDep_Gerant($id_auth);
+        $test_fonction = HolidayController::determineUserRoleStatus($id_auth);
 
         if ($test_fonction['leader'] == 1) {
             $result = TeleworkController::getAllTeleworkLeaderHistories($id_auth);

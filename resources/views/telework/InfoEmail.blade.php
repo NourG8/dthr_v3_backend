@@ -47,7 +47,7 @@
                                             style="display:inline-block; vertical-align:middle; margin:29px 0 26px; border-bottom:1px solid #cecece; width:100px;"></span>
                                         <p style="color:#455056; font-size:15px;line-height:24px; margin:0;">
                                             Hello,<br>
-                                            For the year {{ $user[2] }}, we want to inform you that {{ $user[1] }}<b> "{{ $user[0]['lastName'] }} {{ $user[0]['firstName'] }}"</b> <br>
+                                            For the year {{ $user[2] }}, we want to inform you that {{ $user[1] }}<b> "{{ $user[0]['last_name'] }} {{ $user[0]['first_name'] }}"</b> <br>
                                             has sent <b>a telework request</b> <br>
                                             Please see request details.<br><br>
                                             Waiting for your reply ...
