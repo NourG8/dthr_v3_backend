@@ -14,7 +14,7 @@ use Intervention\Image\Facades\Image;
 
 class CompanyController extends Controller
 {
-    static public function getCompany()
+    public function getCompany()
     {
         $companies = Company::all();
         return $this->successResponse( $companies );
