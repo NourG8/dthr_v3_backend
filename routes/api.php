@@ -200,3 +200,5 @@ Route::group(['prefix' => 'documents-type'], function () {
   Route::put('/{id}', [DocumentTypeController::class, 'update']);
   Route::delete('/{id}', [DocumentTypeController::class, 'destroy']);
 });
+
+Route::get('/generate-pdf/{id}', [UserController::class, 'generatePDF']);
