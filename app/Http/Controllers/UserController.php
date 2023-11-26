@@ -7,6 +7,7 @@ use App\Models\PositionUser;
 use App\Models\TeamUser;
 use App\Models\Team;
 use App\Models\Position;
+use App\Models\Document;
 use App\Models\UserContract;
 use App\Http\Requests\Users\UserRequest;
 use App\Http\Requests\Users\UserEditRequest;
@@ -220,8 +221,7 @@ class UserController extends Controller
     {
         // $this->authorize('update', User::class);
         $user = User::findOrFail($id);
-        $user->is_deleted = 1;
-        $user->save();
+        $user->delete();
 
         return $this->successResponse( $user->load('positions', 'teams'));
     }
@@ -250,6 +250,39 @@ class UserController extends Controller
         $user->update(['status' => 'active']);
 
         return $this->successResponse( $user );
+    }
+
+    public function generatePDF($id , Request $request)
+    {
+        $document = Document::find($id); // Remplacez Document par le nom de votre modèle
+
+        $userC = new UserContract();
+        //id doc chnager le nom de la colonne
+        $userC->contract_id = $id;
+        $userC->user_id = $request->input('user_id');
+        $userC->start_date = $request->input('start_date');
+        $userC->end_date = $request->input('end_date');
+        $userC->salary = $request->input('salary');
+        $userC->status = "Draft";
+        $userC->only_physical = 0;
+        $date_now = Carbon::now()->toDateTimeString();
+        $userC->date_status = $date_now;
+        $userC->place_of_work = $request->input('place_of_work');
+        $userC->start_time_work = $request->input('start_time_work');
+        $userC->end_time_work = $request->input('end_time_work');
+        $userC->trial_period = $request->input('trial_period');
+        $userC->fileContract = null;
+        $userC->save();
+
+        // Remplacez les variables par les informations de l'utilisateur
+        $body = str_replace('$$last_name$$', $request->last_name, $document->body);
+        $body = str_replace('$$first_name$$', $request->first_name, $body);
+        $body = str_replace('$$email$$', $request->email, $body);
+    
+        $pdf = PDF::loadHTML($body);
+        $filename = $request->type . '_'  .$request->last_name . '_' . $request->first_name . '.pdf';
+    
+        return $pdf->download($filename);
     }
 
     // public function AffectContractsToUser(Request $request)
