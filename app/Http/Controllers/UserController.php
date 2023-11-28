@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\PositionUser;
-use App\Models\TeamUser;
 use App\Models\Team;
-use App\Models\Position;
-use App\Models\Document;
-use App\Models\UserContract;
+use App\Models\UserDocument;
 use App\Http\Requests\Users\UserRequest;
 use App\Http\Requests\Users\UserEditRequest;
 use App\Http\Requests\Contracts\OldContractRequest;
+use App\Http\Requests\Users\EditUserInternRequest;
 use App\Http\Requests\Users\UserPermissionsRequest;
 use App\Http\Requests\Users\UserRolesRequest;
+use App\Models\Document;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use DB;
@@ -22,13 +21,13 @@ use Illuminate\Support\Arr;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Str;
-use PhpOffice\PhpWord\TemplateProcessor;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 use PDF;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\Settings;
 use Illuminate\Http\Request;
+use PhpOffice\PhpWord\PhpWord;
 
 class UserController extends Controller
 {
@@ -44,16 +43,16 @@ class UserController extends Controller
             ['is_deleted', false],
             ['status', 'active'],
         ])
-        ->whereHas('positions', function($q) {
-            $q->whereHas('position', function($query) {
-                $query->where([
-                    ['job_name', 'Manager'],
-                    ['is_deleted', false],
-                    ['status', 'active'],
-                ]);
-            });
-        })
-        ->get();
+            ->whereHas('positions', function ($q) {
+                $q->whereHas('position', function ($query) {
+                    $query->where([
+                        ['job_name', 'Manager'],
+                        ['is_deleted', false],
+                        ['status', 'active'],
+                    ]);
+                });
+            })
+            ->get();
 
         return $this->successResponse($managers);
     }
@@ -61,10 +60,10 @@ class UserController extends Controller
     public function getArchivedUser()
     {
         $users = User::where('status', 'inactive')
-        ->whereHas('positions', function($query) {
-            $query->where('end_date', '=', null);
-        })
-        ->get();
+            ->whereHas('positions', function ($query) {
+                $query->where('end_date', '=', null);
+            })
+            ->get();
 
         return $this->successResponse($users);
     }
@@ -91,15 +90,15 @@ class UserController extends Controller
 
         $user->load('positions', 'teams');
 
-        return $this->successResponse($user , 201);
+        return $this->successResponse($user, 201);
     }
 
     public function DeleteContractsUser($id)
     {
-        $userContract = UserContract::findOrFail($id);
+        $userContract = UserDocument::findOrFail($id);
         $userContract->update(['is_deleted' => 1]);
 
-       return  $this->successResponse(['message' => 'user contract deleted successfully']);
+        return  $this->successResponse(['message' => 'user document deleted successfully']);
     }
 
     public function assignRoles($id, UserRolesRequest $request)
@@ -149,26 +148,26 @@ class UserController extends Controller
     public function getContractsUserModel($id)
     {
         $user = User::findOrFail($id);
-        $contracts = $user->contracts()
+        $documents = $user->documents()
             ->where('only_physical', 0)
             ->where('is_deleted', 0)
             ->get();
-    
-        return $this->successResponse($contracts);
+
+        return $this->successResponse($documents);
     }
 
     public function getContractsUserSigned($id)
     {
         $user = User::findOrFail($id);
-        $contracts = $user->contracts()
-            ->where('file_contract', '!=', null)
+        $documents = $user->documents()
+            ->where('file_document', '!=', null)
             ->where('only_physical', 1)
             ->where('is_deleted', 0)
-            ->with(['contract' => function ($query) {
+            ->with(['document' => function ($query) {
                 $query->select('id', 'type', 'file');
             }])->get();
 
-            return $this->successResponse($contracts);
+        return $this->successResponse($documents);
     }
 
     public function editUser(UserEditRequest $request, $id)
@@ -177,21 +176,21 @@ class UserController extends Controller
 
         $user->update($request->validated());
 
-        $existingPositions = $user->positions->where("end_date" , "==" , null)->pluck('position_id')->toArray();
+        $existingPositions = $user->positions->where("end_date", "==", null)->pluck('position_id')->toArray();
 
         $newPositions = array_values(array_diff($request->input('position_id', []), $existingPositions));
-    
+
         $positionsToUpdate = array_values(array_diff($existingPositions, $request->input('position_id', [])));
 
         $user->positions()->whereIn('position_id', $positionsToUpdate)->update(['end_date' => now()]);
 
         foreach ($newPositions as $positionId) {
 
-            if (!$user->positions->where("end_date","===",null)->contains('position_id', $positionId)) {
-                    $user->positions()->create([
-                        'position_id' => $positionId,
-                        'start_date' => now(),
-                    ]);
+            if (!$user->positions->where("end_date", "===", null)->contains('position_id', $positionId)) {
+                $user->positions()->create([
+                    'position_id' => $positionId,
+                    'start_date' => now(),
+                ]);
             }
         }
 
@@ -206,15 +205,15 @@ class UserController extends Controller
         // Création de nouvelles équipes
         foreach ($newTeams as $teamId) {
             if (!$user->teams->where("is_deleted", 0)->contains('team_id', $teamId)) {
-                    $user->teams()->create([
-                        'team_id' => $teamId,
-                        'is_leader' => 0,
-                        'integration_date' => now(),
-                    ]);
+                $user->teams()->create([
+                    'team_id' => $teamId,
+                    'is_leader' => 0,
+                    'integration_date' => now(),
+                ]);
             }
         }
-                
-        return $this->successResponse( $user->load('positions', 'teams'));
+
+        return $this->successResponse($user->load('positions', 'teams'));
     }
 
     public function destroyUser($id)
@@ -223,15 +222,15 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $user->delete();
 
-        return $this->successResponse( $user->load('positions', 'teams'));
+        return $this->successResponse($user->load('positions', 'teams'));
     }
 
     public function getTeams_Department(Request $request)
     {
-        $teams = Team::where([['status','active']])
-        ->whereIn(  'department_id',$request->ids_dep)->get();
-        
-        return $this->successResponse( $teams );
+        $teams = Team::where([['status', 'active']])
+            ->whereIn('department_id', $request->ids_dep)->get();
+
+        return $this->successResponse($teams);
     }
 
     public function archiveUser($id)
@@ -240,7 +239,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $user->update(['status' => 'inactive']);
 
-        return $this->successResponse( $user );
+        return $this->successResponse($user);
     }
 
     public function resetUser($id)
@@ -249,16 +248,17 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $user->update(['status' => 'active']);
 
-        return $this->successResponse( $user );
+        return $this->successResponse($user);
     }
 
-    public function generatePDF($id , Request $request)
+    public function generatePDF($id, Request $request)
     {
         $document = Document::find($id); // Remplacez Document par le nom de votre modèle
 
-        $userC = new UserContract();
+
+        $userC = new UserDocument();
         //id doc chnager le nom de la colonne
-        $userC->contract_id = $id;
+        $userC->document_id = $id;
         $userC->user_id = $request->input('user_id');
         $userC->start_date = $request->input('start_date');
         $userC->end_date = $request->input('end_date');
@@ -271,457 +271,303 @@ class UserController extends Controller
         $userC->start_time_work = $request->input('start_time_work');
         $userC->end_time_work = $request->input('end_time_work');
         $userC->trial_period = $request->input('trial_period');
-        $userC->fileContract = null;
+        $userC->file = null;
         $userC->save();
 
         // Remplacez les variables par les informations de l'utilisateur
         $body = str_replace('$$last_name$$', $request->last_name, $document->body);
         $body = str_replace('$$first_name$$', $request->first_name, $body);
         $body = str_replace('$$email$$', $request->email, $body);
-    
+
         $pdf = PDF::loadHTML($body);
-        $filename = $request->type . '_'  .$request->last_name . '_' . $request->first_name . '.pdf';
-    
+        $filename = $request->type . '_'  . $request->last_name . '_' . $request->first_name . '.pdf';
+
         return $pdf->download($filename);
     }
 
-    // public function AffectContractsToUser(Request $request)
-    // {
-    //     $userC = new UserContract();
-    //     $userC->contract_id = $request->input('contract_id');
-    //     $userC->user_id = $request->input('user_id');
-    //     $userC->startDate = $request->input('startDate');
-    //     $userC->endDate = $request->input('endDate');
-    //     $userC->salary = $request->input('salary');
-    //     $userC->is_deleted = 0;
-    //     $userC->status = "Draft";
-    //     $userC->OnlyPhysical = 0;
-    //     $date_now = Carbon::now()->toDateTimeString();
-    //     $userC->date_status = $date_now;
-    //     $userC->placeOfWork = $request->input('placeOfWork');
-    //     $userC->placeOfWork = $request->input('placeOfWork');
-    //     $userC->startTimeWork = $request->input('startTimeWork');
-    //     $userC->endTimeWork = $request->input('endTimeWork');
-    //     $userC->trialPeriod = $request->input('trialPeriod');
-    //     $userC->fileContract = null;
-    //     $userC->save();
+    public function AffectContractsToUser(Request $request)
+    {
+        $userC = new UserDocument();
+        //id doc chnager le nom de la colonne
+        $userC->document_id = $id;
+        $userC->user_id = $request->input('user_id');
+        $userC->start_date = $request->input('start_date');
+        $userC->end_date = $request->input('end_date');
+        $userC->salary = $request->input('salary');
+        $userC->status = "Draft";
+        $userC->only_physical = 0;
+        $date_now = Carbon::now()->toDateTimeString();
+        $userC->date_status = $date_now;
+        $userC->place_of_work = $request->input('place_of_work');
+        $userC->start_time_work = $request->input('start_time_work');
+        $userC->end_time_work = $request->input('end_time_work');
+        $userC->trial_period = $request->input('trial_period');
+        $userC->file = null;
 
-    //     $contract_result = DB::table('user_contracts')
-    //     ->leftJoin('users', 'user_contracts.user_id', '=', 'users.id')
-    //     ->leftJoin('contracts', 'user_contracts.contract_id', '=', 'contracts.id')
-    //     ->select('user_contracts.*','contracts.type','contracts.file','users.lastname','users.firstname')
-    //     ->where([['user_contracts.id', '=', $userC->id],
-    //              ['user_contracts.is_deleted', '=', 0]])
-    //     ->get();
+        if ($userC->file != null) {
+            $filename = public_path() . '/signed_document//' . $userC->file;
+            if (File::exists($filename)) {
+                File::delete($filename);
+            }
+        }
 
-    //     $contract = json_decode($contract_result, true);
+        if ($request->file('file')) {
+            $name = $request->file('file')->getClientOriginalName();
+            $path = $request->file('file')->move('signed_document', $name);
+            $userC->file = $name;
+        }
 
-    //     $download = $request->input('download');
+        $userC->save();
 
-    //     if($download != null){
-    //             $user_result = DB::table('users')
-    //             ->leftJoin('position_users', 'position_users.user_id', '=', 'users.id')
-    //             ->leftJoin('positions', 'position_users.position_id', '=', 'positions.id')
-    //             ->select('users.*','positions.jobName')
-    //             ->where('users.id', '=', $contract[0]['user_id'])
-    //             ->get();
+        $document = UserDocument::with(['user', 'document'])
+            ->where('id', $userC->id)
+            ->first();
 
-    //             $user = json_decode($user_result, true);
-    //             $file_name = $contract[0]['file'];
-    //             $type = $contract[0]['type'];
-    //             $name = $user[0]['last_name'] ."_" .$user[0]['first_name'] ;
+        $download = $request->input('download');
 
-    //             $template = "contract\\" .$file_name;
-    //             $templateProcessor = new TemplateProcessor($template);
-    //             $templateProcessor->setValue('first_name', $user[0]['first_name']);
-    //             $user_sex = '';
-    //             if($user[0]['sex'] == 'Women'){
-    //                 if($user[0]['FamilySituation'] == 'Single'){
-    //                     $user_sex = "Mlle";
-    //                 }else{
-    //                     $user_sex = "Mme";
-    //                 }
-    //             }else if($user[0]['sex'] == 'Man'){
-    //                 $user_sex = "Mr";
-    //             }
-    //             $templateProcessor->setValue('sex', $user_sex);
-    //             $templateProcessor->setValue('last_name', $user[0]['last_name']);
-    //             $templateProcessor->setValue('dateBirth', $user[0]['dateBirth']);
-    //             $templateProcessor->setValue('placeBirth', $user[0]['placeBirth']);
-    //             $templateProcessor->setValue('cin', $user[0]['cin']);
-    //             $templateProcessor->setValue('deliveryDateCin', $user[0]['deliveryDateCin']);
-    //             $templateProcessor->setValue('deliveryPlaceCin', $user[0]['deliveryPlaceCin']);
-    //             $templateProcessor->setValue('integrationDate', $user[0]['integrationDate']);
-    //             $templateProcessor->setValue('position', $user[0]['jobName']);
-    //             $templateProcessor->setValue('salary', $contract[0]['salary']);
+        if ($download != null) {
+            $user = $document->user;
 
-    //             $integration_date = $user[0]['integrationDate'];
-    //             $day = date('d', strtotime($integration_date));
-    //             if($day == 1){
-    //                 $date_ticket = date('Y-m-d',strtotime('+2 month',strtotime($integration_date)));
-    //             }else{
-    //                 $date_ticket = date('Y-m-d',strtotime('+3 month',strtotime($integration_date)));
-    //             }
+            $body = str_replace(
+                ['$$last_name$$', '$$first_name$$', '$$email$$', '$$sex$$', '$$date_birth$$', '$$place_birth$$', '$$cin$$', '$$delivery_date_cin$$', '$$delivery_place_cin$$', '$$integration_date$$'],
+                [$user->last_name, $user->first_name, $user->email, $user->sex, $user->date_birth, $user->place_birth, $user->cin, $user->delivery_date_cin, $user->delivery_place_cin, $user->integration_date],
+                $document->document->body
+            );
 
-    //             $templateProcessor->setValue('dateTicket', $date_ticket);
+            if ($download == "pdf") {
+                $pdf = PDF::loadHTML($body);
+                $filename = $document->document->documentType->name . '_'  . $user->last_name . '_' . $user->first_name . '.pdf';
 
-    //             $date_now = Carbon::now()->toDateTimeString();
-    //             $templateProcessor->setValue('date_now', $date_now);
-    //             $new_file_name = "contract\\contract_" .$type . "_" .$name .".docx";
+                return $pdf->download($filename);
+            } else if ($download == "word") {
+                $phpWord = new PhpWord();
 
-    //             if($download == "pdf"){
-    //                 $domPdfPath = base_path('vendor/dompdf/dompdf');
-    //                 \PhpOffice\PhpWord\Settings::setPdfRendererPath($domPdfPath);
-    //                 \PhpOffice\PhpWord\Settings::setPdfRendererName('DomPDF');
+                // Ajouter le contenu HTML converti dans le document Word
+                $section = $phpWord->addSection();
+                \PhpOffice\PhpWord\Shared\Html::addHtml($section, $body);
 
-    //                 /*@ Save Temporary Word File With New Name */
-    //                 $saveDocPath = public_path($new_file_name);
-    //                 $templateProcessor->saveAs($saveDocPath);
+                // Générer le nom de fichier
+                $filename = $document->document->documentType->name . '_' . $user->last_name . '_' . $user->first_name . '.docx';
 
-    //                 // Load temporarily create word file
-    //                 $Content = \PhpOffice\PhpWord\IOFactory::load($saveDocPath);
+                // Enregistrer le document Word
+                $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
+                $objWriter->save($filename);
 
-    //                 //Save it into PDF
-    //                 $PDFWriter = \PhpOffice\PhpWord\IOFactory::createWriter($Content,'PDF');
+                return response()->download($filename)->deleteFileAfterSend(true);
+            }
+        }
+    }
 
-    //                 $new_file_name_pdf = "contract\\contract_" .$type . "_" .$name .".pdf";
-    //                 $PDFWriter->save(public_path($new_file_name_pdf));
+    public function editContractsToUser(Request $request, $id)
+    {
+        $userContract  = UserDocument::findOrFail($id);
+        //id doc chnager le nom de la colonne
+        $userContract->document_id = $request->input('document_id');
+        $userContract->user_id = $request->input('user_id');
+        $userContract->start_date = $request->input('start_date');
+        $userContract->end_date = $request->input('end_date');
+        $userContract->salary = $request->input('salary');
+        $userContract->status = "Draft";
+        $userContract->only_physical = 0;
+        $date_now = Carbon::now()->toDateTimeString();
+        $userContract->date_status = $date_now;
+        $userContract->place_of_work = $request->input('place_of_work');
+        $userContract->start_time_work = $request->input('start_time_work');
+        $userContract->end_time_work = $request->input('end_time_work');
+        $userContract->trial_period = $request->input('trial_period');
+        $userContract->file = null;
 
-    //                 //delete word!!
-    //                 File::delete($saveDocPath);
+        // Supprimer l'ancien fichier s'il existe
+        if ($userContract->file != null) {
+            $filename = public_path() . '/signed_document//' . $userContract->file;
+            if (File::exists($filename)) {
+                File::delete($filename);
+            }
+        }
 
-    //                 return response()->download($new_file_name_pdf)->deleteFileAfterSend(true);
+        // Enregistrer le nouveau fichier s'il est fourni
+        if ($request->file('file')) {
+            $name = $request->file('file')->getClientOriginalName();
+            $path = $request->file('file')->move('signed_document', $name);
+            $userContract->file = $name;
+        }
 
-    //             }else if($download == "word"){
-    //                 //Save word code!!
-    //                 $new_file_name = "contract\\contract_" .$type . "_" .$name .".docx";
-    //                 $templateProcessor->saveAs($new_file_name);
+        $userContract->save();
 
-    //                 return response()->download($new_file_name)->deleteFileAfterSend(true);
-    //             }
-    //         }
-    //     // return response()->json([
-    //     //     'user_Contracts' => $contract[0],
-    //     //     'success' => true
-    //     // ], 200);
-    // }
+        $document = UserDocument::with(['user', 'document'])
+            ->where('id', $userContract->id)
+            ->first();
 
-    // public function EditContractsToUser(Request $request,$id)
-    // {
-    //     $userC = UserContract::findOrFail($id);
-    //     $userC->contract_id = $request->input('contract_id');
-    //     $userC->user_id = $request->input('user_id');
-    //     $userC->startDate = $request->input('startDate');
-    //     $userC->endDate = $request->input('endDate');
-    //     $userC->salary = $request->input('salary');
-    //     $userC->raison = $request->input('raison');
-    //     $userC->is_deleted = 0;
-    //     $userC->OnlyPhysical = 0;
-    //     $userC->status = $request->input('status');
-    //     $userC->date_status = $request->input('date_status');
-    //     $userC->placeOfWork = $request->input('placeOfWork');
-    //     $userC->startTimeWork = $request->input('startTimeWork');
-    //     $userC->endTimeWork = $request->input('endTimeWork');
-    //     $userC->trialPeriod = $request->input('trialPeriod');
+        $download = $request->input('download');
 
-    //     if($userC->fileContract != null){
-    //       $filename = public_path().'/signed_contract//'.$userC->fileContract;
-    //         if (File::exists($filename)) {
-    //             File::delete($filename);
-    //         }
-    //     }
+        if ($download != null) {
+            $user = $document->user;
 
-    //     if($request->file('file')){
-    //         $name = $request->file('file')->getClientOriginalName();
-    //         $path = $request->file('file')->move('signed_contract',$name);
-    //         $userC->fileContract = $name;
-    //     }
+            $body = str_replace(
+                ['$$last_name$$', '$$first_name$$', '$$email$$', '$$sex$$', '$$date_birth$$', '$$place_birth$$', '$$cin$$', '$$delivery_date_cin$$', '$$delivery_place_cin$$', '$$integration_date$$'],
+                [$user->last_name, $user->first_name, $user->email, $user->sex, $user->date_birth, $user->place_birth, $user->cin, $user->delivery_date_cin, $user->delivery_place_cin, $user->integration_date],
+                $document->document->body
+            );
+            // $body = str_replace('$$delivery_date_cin$$', $user->delivery_date_cin, $body);
+            // $body = str_replace('$$delivery_place_cin$$', $user->delivery_place_cin, $body);
 
-    //     $userC->save();
+            if ($download == "pdf") {
+                $pdf = PDF::loadHTML($body);
+                $filename = $document->document->documentType->name . '_'  . $user->last_name . '_' . $user->first_name . '.pdf';
+                return $pdf->download($filename);
+            } else if ($download == "word") {
+                $phpWord = new PhpWord();
 
-    //     $contract_result = DB::table('user_contracts')
-    //         ->leftJoin('users', 'user_contracts.user_id', '=', 'users.id')
-    //         ->leftJoin('contracts', 'user_contracts.contract_id', '=', 'contracts.id')
-    //         ->select('user_contracts.*','contracts.type','contracts.file','users.lastname','users.firstname')
-    //         ->where([['user_contracts.id', '=', $userC->id],
-    //                 ['user_contracts.is_deleted', '=', 0]])
-    //         ->get();
+                // Ajouter le contenu HTML converti dans le document Word
+                $section = $phpWord->addSection();
+                \PhpOffice\PhpWord\Shared\Html::addHtml($section, $body);
 
-    //     $contract = json_decode($contract_result, true);
+                // Générer le nom de fichier
+                $filename = $document->document->documentType->name . '_' . $user->last_name . '_' . $user->first_name . '.docx';
 
-    //     $download = $request->input('download');
+                // Enregistrer le document Word
+                $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
+                $objWriter->save($filename);
 
-    //     if($download != null){
-    //             $user_result = DB::table('users')
-    //             ->leftJoin('position_users', 'position_users.user_id', '=', 'users.id')
-    //             ->leftJoin('positions', 'position_users.position_id', '=', 'positions.id')
-    //             ->select('users.*','positions.jobName')
-    //             ->where('users.id', '=', $contract[0]['user_id'])
-    //             ->get();
+                // Télécharger le fichier
+                return response()->download($filename)->deleteFileAfterSend(true);
+            }
+        }
+    }
 
-    //             $user = json_decode($user_result, true);
-    //             $file_name = $contract[0]['file'];
-    //             $type = $contract[0]['type'];
-    //             $name = $user[0]['last_name'] ."_" .$user[0]['first_name'] ;
+    public function editUserIntern(EditUserInternRequest $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $user->last_name = $request->last_name;
+        $user->first_name = $request->first_name;
+        $user->phone = $request->phone;
+        $user->address = $request->address;
+        $user->family_situation = $request->family_situation;
+        $user->nb_children = $request->nb_children;
+        $user->level_studies = $request->level_studies;
+        $user->delivery_date_cin = $request->delivery_date_cin;
+        $user->save();
 
+        return $this->successResponse($user);
+    }
 
-    //             $template = "contract\\" .$file_name;
-    //             $templateProcessor = new TemplateProcessor($template);
-    //             $templateProcessor->setValue('first_name', $user[0]['first_name']);
-    //             $user_sex = '';
-    //             if($user[0]['sex'] == 'Women'){
-    //                 if($user[0]['FamilySituation'] == 'Single'){
-    //                     $user_sex = "Mlle";
-    //                 }else{
-    //                     $user_sex = "Mme";
-    //                 }
-    //             }else if($user[0]['sex'] == 'Man'){
-    //                 $user_sex = "Mr";
-    //             }
-    //             $templateProcessor->setValue('sex', $user_sex);
-    //             $templateProcessor->setValue('last_name', $user[0]['last_name']);
-    //             $templateProcessor->setValue('dateBirth', $user[0]['dateBirth']);
-    //             $templateProcessor->setValue('placeBirth', $user[0]['placeBirth']);
-    //             $templateProcessor->setValue('cin', $user[0]['cin']);
-    //             $templateProcessor->setValue('deliveryDateCin', $user[0]['deliveryDateCin']);
-    //             $templateProcessor->setValue('deliveryPlaceCin', $user[0]['deliveryPlaceCin']);
-    //             $templateProcessor->setValue('integrationDate', $user[0]['integrationDate']);
-    //             $templateProcessor->setValue('position', $user[0]['jobName']);
-    //             $templateProcessor->setValue('salary', $contract[0]['salary']);
-
-    //             $integration_date = $user[0]['integrationDate'];
-    //             $day = date('d', strtotime($integration_date));
-    //             if($day == 1){
-    //                 $date_ticket = date('Y-m-d',strtotime('+2 month',strtotime($integration_date)));
-    //             }else{
-    //                 $date_ticket = date('Y-m-d',strtotime('+3 month',strtotime($integration_date)));
-    //             }
-
-    //             $templateProcessor->setValue('dateTicket', $date_ticket);
-
-    //             $date_now = Carbon::now()->toDateTimeString();
-    //             $templateProcessor->setValue('date_now', $date_now);
-    //             $new_file_name = "contract\\contract_" .$type . "_" .$name .".docx";
-
-    //             if($download == "pdf"){
-    //                 $domPdfPath = base_path('vendor/dompdf/dompdf');
-    //                 \PhpOffice\PhpWord\Settings::setPdfRendererPath($domPdfPath);
-    //                 \PhpOffice\PhpWord\Settings::setPdfRendererName('DomPDF');
-
-    //                 /*@ Save Temporary Word File With New Name */
-    //                 $saveDocPath = public_path($new_file_name);
-    //                 $templateProcessor->saveAs($saveDocPath);
-
-    //                 // Load temporarily create word file
-    //                 $Content = \PhpOffice\PhpWord\IOFactory::load($saveDocPath);
-
-    //                 //Save it into PDF
-    //                 $PDFWriter = \PhpOffice\PhpWord\IOFactory::createWriter($Content,'PDF');
-
-    //                 $new_file_name_pdf = "contract\\contract_" .$type . "_" .$name .".pdf";
-    //                 $PDFWriter->save(public_path($new_file_name_pdf));
-
-    //                 //delete word!!
-    //                 File::delete($saveDocPath);
-
-    //                 return response()->download($new_file_name_pdf)->deleteFileAfterSend(true);
-
-    //             }else if($download == "word"){
-    //                 //Save word code!!
-    //                 $new_file_name = "contract\\contract_" .$type . "_" .$name .".docx";
-    //                 $templateProcessor->saveAs($new_file_name);
-
-    //                 return response()->download($new_file_name)->deleteFileAfterSend(true);
-    //             }
-    //         }
-    //     // return response()->json([
-    //     //     'user_Contracts' => $contract[0],
-    //     //     'success' => true
-    //     // ], 200);
-    // }
-
-    // public function editUserIntern(Request $request,$id)
-    // {
-    //     $user = User::findOrFail($id);
-    //     $user->last_name= $request->last_name;
-    //     $user->first_name= $request->first_name;
-    //     $user->phone = $request->phone;
-    //     $user->address = $request->address;
-    //     $user->FamilySituation = $request->FamilySituation;
-    //     $user->nbChildren = $request->nbChildren;
-    //     $user->levelStudies = $request->levelStudies;
-    //     $user->deliveryDateCin = $request->deliveryDateCin;
-    //     $user->save();
-    //     return response()->json([
-    //         'user' => $user,
-    //         'success' => true
-    //     ], 200);
-    // }
-
-    public function ChangePhotoProfil(Request $request,$id)
+    public function ChangePhotoProfil(Request $request, $id)
     {
         $extension = explode('/', explode(':', substr($request->input('base64string'), 0, strpos($request->input('base64string'), ';')))[1])[1];
-        $replace = substr($request->input('base64string'), 0, strpos($request->input('base64string'), ',')+1);
+        $replace = substr($request->input('base64string'), 0, strpos($request->input('base64string'), ',') + 1);
         $file = str_replace($replace, '', $request->input('base64string'));
         $decodedFile = str_replace(' ', '+', $file);
-        $path =  Str::random(5) . time() .'.'. $extension;
+        $path =  Str::random(5) . time() . '.' . $extension;
 
-        Storage::disk('public')->put("photo/".$path, base64_decode($decodedFile));
+        Storage::disk('public')->put("photo/" . $path, base64_decode($decodedFile));
 
         $user = user::findOrFail($id);
         $user->image = $path;
         $user->save();
 
         return [
-            'user'=> $user,
+            'user' => $user,
         ];
     }
 
-    // public function getPositionUser($id_pos)
-    // {
-    //     $user = DB::table('position_users')
-    //     ->leftJoin('positions', 'position_users.position_id', '=', 'positions.id')
-    //     ->leftJoin('users', 'position_users.user_id', '=', 'users.id')
-    //     ->select('users.id','users.first_name','users.last_name')
-    //     ->where('position_id',$id_pos)
-    //     ->get();
-    //      return response()->json($user);
-    // }
+    public function getPositionUser($id_pos)
+    {
+        $userIds = PositionUser::where('position_id', $id_pos)->pluck('user_id');
 
+        $users = User::whereIn('id', $userIds)
+            ->select('id', 'first_name', 'last_name')
+            ->get();
 
-    function uploadOldContract(OldContractRequest $request,$id_user)
+        return response()->json($users);
+    }
+
+    public function uploadOldContract(OldContractRequest $request, $id_user)
     {
         $name = "";
 
-        if($request->file('file')){
-             $name = explode(".",$request->file('file')->getClientOriginalName())[0] ."_". Str::random(4) .".". explode(".",$request->file('file')->getClientOriginalName())[1];
-             $path = $request->file('file')->move('old_contract',$name);
+        if ($request->file('file')) {
+            $name = explode(".", $request->file('file')->getClientOriginalName())[0] . "_" . Str::random(4) . "." . explode(".", $request->file('file')->getClientOriginalName())[1];
+            $path = $request->file('file')->move('old_document', $name);
         }
 
-        $user_contract = new UserContract();
+        $user_document = new UserDocument();
 
-        if($name != ""){
-            $user_contract->file_contract = $name;
+        if ($name != "") {
+            $user_document->file_document = $name;
         }
 
-        $user_contract->file_contract = $name;
-        $user_contract->contract_id = $request->input('contract_id');
-        $user_contract->start_date = $request->input('start_date');
-        $user_contract->status = "Signed";
-        $user_contract->date_status = now();
-        $user_contract->is_deleted = 0;
-        $user_contract->only_physical = 1;
-        $user_contract->end_date = $request->input('end_date');
-        $user_contract->user_id = $id_user;
-        $user_contract->save();
+        $user_document->file_document = $name;
+        $user_document->document_id = $request->input('document_id');
+        $user_document->start_date = $request->input('start_date');
+        $user_document->status = "Signed";
+        $user_document->date_status = now();
+        $user_document->is_deleted = 0;
+        $user_document->only_physical = 1;
+        $user_document->end_date = $request->input('end_date');
+        $user_document->user_id = $id_user;
+        $user_document->save();
 
-        return $this->successResponse( $user_contract );
+        return $this->successResponse($user_document);
     }
 
     // DownloadSignedContract and DownloadOldContract 
-    function DownloadOldContract($id_user_contract){
-        // 1er methode to download file
-        $user_contract = UserContract::findOrFail($id_user_contract);
-        $file_name_1 = "old_contract\\" .$user_contract->file_contract;
-        $file_name_2 = "signed_contract\\" .$user_contract->file_contract;
-        $path_1 =  public_path($file_name_1);
-        $path_2 =  public_path($file_name_2);
-        if (file_exists($path_1)){
+    function downloadOldContract($id_user_document)
+    {
+        $user_document = UserDocument::findOrFail($id_user_document);
+        $file_name_1 = "old_document/" . $user_document->file;
+        $file_name_2 = "signed_document/" . $user_document->file;
+        $path_1 = public_path($file_name_1);
+        $path_2 = public_path($file_name_2);
+
+        if (file_exists($path_1)) {
             return response()->download($path_1);
-        }
-        if (file_exists($path_2)){
+        } elseif (file_exists($path_2)) {
             return response()->download($path_2);
         }
     }
 
-    // public function DownloadModelContracts($id_user_contract)
-    // {
-    //     $contract_result = DB::table('user_contracts')
-    //     ->leftJoin('users', 'user_contracts.user_id', '=', 'users.id')
-    //     ->leftJoin('contracts', 'user_contracts.contract_id', '=', 'contracts.id')
-    //     ->select('user_contracts.*','contracts.type','contracts.file','users.lastname','users.firstname')
-    //     ->where([['user_contracts.id', '=', $id_user_contract],
-    //              ['user_contracts.is_deleted', '=', 0]])
-    //     ->get();
-
-    //     $contract = json_decode($contract_result, true);
-
-    //     if($contract){
-    //         $user_result = DB::table('users')
-    //             ->leftJoin('position_users', 'position_users.user_id', '=', 'users.id')
-    //             ->leftJoin('positions', 'position_users.position_id', '=', 'positions.id')
-    //             ->select('users.*','positions.jobName')
-    //             ->where('users.id', '=', $contract[0]['user_id'])
-    //             ->get();
-    //                 $user = json_decode($user_result, true);
-
-    //             $file_name = $contract[0]['file'];
-    //             $type = $contract[0]['type'];
-    //             $name = $user[0]['last_name'] ."_" .$user[0]['first_name'] ;
-
-    //             $template = "contract\\" .$file_name;
-    //             $templateProcessor = new TemplateProcessor($template);
-    //             $templateProcessor->setValue('first_name', $user[0]['first_name']);
-    //             $user_sex = '';
-    //             if($user[0]['sex'] == 'Women'){
-    //                 if($user[0]['FamilySituation'] == 'Single'){
-    //                     $user_sex = "Mlle";
-    //                 }else{
-    //                     $user_sex = "Mme";
-    //                 }
-    //             }else if($user[0]['sex'] == 'Man'){
-    //                 $user_sex = "Mr";
-    //             }
-    //             $templateProcessor->setValue('sex', $user_sex);
-    //             $templateProcessor->setValue('last_name', $user[0]['last_name']);
-    //             $templateProcessor->setValue('dateBirth', $user[0]['dateBirth']);
-    //             $templateProcessor->setValue('placeBirth', $user[0]['placeBirth']);
-    //             $templateProcessor->setValue('cin', $user[0]['cin']);
-    //             $templateProcessor->setValue('deliveryDateCin', $user[0]['deliveryDateCin']);
-    //             $templateProcessor->setValue('deliveryPlaceCin', $user[0]['deliveryPlaceCin']);
-    //             $templateProcessor->setValue('integrationDate', $user[0]['integrationDate']);
-    //             $templateProcessor->setValue('position', $user[0]['jobName']);
-    //             $templateProcessor->setValue('salary', $contract[0]['salary']);
-
-    //             $integration_date = $user[0]['integrationDate'];
-    //             $day = date('d', strtotime($integration_date));
-    //             if($day == 1){
-    //                 $date_ticket = date('Y-m-d',strtotime('+2 month',strtotime($integration_date)));
-    //             }else{
-    //                 $date_ticket = date('Y-m-d',strtotime('+3 month',strtotime($integration_date)));
-    //             }
-
-    //             $templateProcessor->setValue('dateTicket', $date_ticket);
-
-    //             $date_now = Carbon::now()->toDateTimeString();
-    //             $templateProcessor->setValue('date_now', $date_now);
-
-    //             $new_file_name = "contract\\contract_" .$type . "_" .$name .".docx";
-    //             $templateProcessor->saveAs($new_file_name);
-
-    //                 return response()->download($new_file_name)->deleteFileAfterSend(true);
-    //           }
-    // }
-
-    // public function getRole_Auth($id){
-    //     $role_user = DB::table('users')
-    //     ->leftJoin('position_users', 'position_users.user_id', '=', 'users.id')
-    //     ->leftJoin('positions', 'position_users.position_id', '=', 'positions.id')
-    //     ->leftJoin('roles', 'roles.id', '=', 'positions.role_id')
-    //     ->select('roles.role')
-    //     ->where('users.id','=',$id)
-    //     ->get();
-    //     return response()->json($role_user);
-    // }
-
-    public function getAllContractsUser($id)
+    public function downloadModelContracts($id_user_document)
     {
-        $contracts = UserContract::with('contract')
-        ->where('user_id', $id)->where('is_deleted', 0)
-        ->get();
+        $document = UserDocument::with(['user', 'document'])
+            ->where([
+                ['id', '=', $id_user_document],
+            ])->firstOrFail();
 
-        return $this->successResponse( $contracts );
+        $user = $document->user;
+
+        $body = str_replace('$$last_name$$', $user->last_name, $document->document->body);
+        $body = str_replace('$$first_name$$', $user->first_name, $body);
+        $body = str_replace('$$email$$', $user->email, $body);
+        $body = str_replace('$$sex$$', $user->sex, $body);
+        $body = str_replace('$$date_birth$$', $user->date_birth, $body);
+        $body = str_replace('$$place_birth$$', $user->place_birth, $body);
+        $body = str_replace('$$cin$$', $user->cin, $body);
+        $body = str_replace('$$delivery_date_cin$$', $user->delivery_date_cin, $body);
+        $body = str_replace('$$delivery_place_cin$$', $user->delivery_place_cin, $body);
+        $body = str_replace('$$integration_date$$', $user->integration_date, $body);
+        $body = str_replace('$$delivery_date_cin$$', $user->delivery_date_cin, $body);
+        $body = str_replace('$$delivery_place_cin$$', $user->delivery_place_cin, $body);
+
+
+        $pdf = PDF::loadHTML($body);
+        $filename = $document->document->documentType->name . '_'  . $user->last_name . '_' . $user->first_name . '.pdf';
+
+        return $pdf->download($filename);
     }
 
-}
+    public function getAllContractsUser(Request $request, $id)
+    {
+        $documentTypeName = $request->input('document_type_name');
 
+        $document = Document::whereHas('documentType', function ($query) use ($documentTypeName) {
+            $query->where('name', $documentTypeName)->where('status', 'active');
+        })
+            ->where('status', 'active')
+            ->latest()
+            ->firstOrFail();
+
+        $documents = UserDocument::where('user_id', $id)->where('document_id', $document->id)->get();
+
+        return $this->successResponse($documents);
+    }
+}

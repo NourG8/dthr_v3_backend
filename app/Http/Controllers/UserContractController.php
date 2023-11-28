@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UserContract;
-use App\Http\Requests\StoreUserContractRequest;
-use App\Http\Requests\UpdateUserContractRequest;
+use App\Models\UserDocument;
+use App\Http\Requests\StoreUserDocumentRequest;
+use App\Http\Requests\UpdateUserDocumentRequest;
 
-class UserContractController extends Controller
+class UserDocumentController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -27,7 +27,7 @@ class UserContractController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreUserContractRequest $request)
+    public function store(StoreUserDocumentRequest $request)
     {
         //
     }
@@ -35,7 +35,7 @@ class UserContractController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(UserContract $userContract)
+    public function show(UserDocument $userContract)
     {
         //
     }
@@ -43,7 +43,7 @@ class UserContractController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(UserContract $userContract)
+    public function edit(UserDocument $userContract)
     {
         //
     }
@@ -51,7 +51,7 @@ class UserContractController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateUserContractRequest $request, UserContract $userContract)
+    public function update(UpdateUserDocumentRequest $request, UserDocument $userContract)
     {
         //
     }
@@ -59,7 +59,7 @@ class UserContractController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(UserContract $userContract)
+    public function destroy(UserDocument $userContract)
     {
         //
     }

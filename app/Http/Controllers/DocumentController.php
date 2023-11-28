@@ -29,8 +29,27 @@ class DocumentController extends Controller
 
     public function store(DocumentRequest $request)
     {
-        $document = Document::create($request->validated());
-
+        $body = $request->input('body');
+    
+        $structureHTML = "
+            <html lang='en-US'>
+                <head>
+                    <meta content='text/html; charset=utf-8' http-equiv='Content-Type' />
+                    <title>Test Template</title>
+                </head>
+                <body>
+                    $body
+                </body>
+            </html>
+        ";
+    
+        $validatedData = $request->validate([
+            'document_type_id' => 'required|exists:document_types,id',
+        ]);
+    
+        $validatedData['body'] = $structureHTML;
+        $document = Document::create($validatedData);
+    
         return $this->successResponse($document);
     }
 

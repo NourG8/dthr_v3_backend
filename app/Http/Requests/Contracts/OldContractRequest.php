@@ -24,7 +24,7 @@ class OldContractRequest extends FormRequest
     {
         return [
             'file' => 'required',
-            'contract_id' => 'required|integer',
+            'document_id' => 'required|integer',
             'start_date' => 'required|date',
             'end_Date' => 'nullable|date',
         ];

@@ -41,17 +41,22 @@ Route::get("users/manager", [UserController::class, 'getAllUserManager']);
 Route::get("user/list/archive", [UserController::class, 'getArchivedUser']);
 Route::post("users", [UserController::class, 'AddUser']);
 Route::put("users/{id}", [UserController::class, 'editUser']);
-Route::put("user_contract/delete/{id}", [UserController::class, 'DeleteContractsUser']);
+Route::put("user_document/delete/{id}", [UserController::class, 'DeleteContractsUser']);
 Route::get("users/delete/{id}", [UserController::class, 'destroyUser']);
 Route::put("user/archive/{id}", [UserController::class, 'archiveUser']);
 Route::put("user/reset/{id}", [UserController::class, 'resetUser']);
 Route::get("users/model/{id}", [UserController::class, 'getContractsUserModel']);
-Route::get("users/contract/{id}", [UserController::class, 'getContractsUserSigned']);
+Route::get("users/document/{id}", [UserController::class, 'getContractsUserSigned']);
 Route::get("user/teams", [UserController::class, 'getTeamsDepartment']);
 Route::put("changerImg/{id}", [UserController::class, 'ChangePhotoProfil']);
-Route::post("user/upload/old_contract/{id_user}", [UserController::class, 'uploadOldContract']);
-Route::get("user_contract/download/{id_user_contract}", [UserController::class, 'DownloadOldContract']);
-Route::get("user/contract/{id}", [UserController::class, 'getAllContractsUser']);
+Route::post("user/upload/old_document/{id_user}", [UserController::class, 'uploadOldContract']);
+Route::get("user_document/download/{id_user_document}", [UserController::class, 'downloadOldContract']);
+Route::get("user/document/{id}", [UserController::class, 'getAllContractsUser']);
+
+//POSITION USER
+Route::get("user/position/{id}", [UserController::class, 'getPositionUser']);
+Route::put("user/edit/{id}", [UserController::class, 'editUserIntern']);
+Route::post("editContractUser/{id_user_contract}", [UserController::class, 'editContractsToUser']);
 
 Route::group(['prefix' => 'users'], function () {
   Route::post('/roles/{id}', [UserController::class, 'assignRoles']);
@@ -202,3 +207,5 @@ Route::group(['prefix' => 'documents-type'], function () {
 });
 
 Route::get('/generate-pdf/{id}', [UserController::class, 'generatePDF']);
+Route::get("user/download/old_contract/{id_user_contract}", [UserController::class, 'downloadModelContracts']);
+

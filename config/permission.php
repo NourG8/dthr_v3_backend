@@ -10,7 +10,7 @@ return [
          * is often just the "Permission" model but you may use whatever you like.
          *
          * The model you want to use as a Permission model needs to implement the
-         * `Spatie\Permission\Contracts\Permission` contract.
+         * `Spatie\Permission\Contracts\Permission` document.
          */
 
         'permission' => Spatie\Permission\Models\Permission::class,
@@ -21,7 +21,7 @@ return [
          * is often just the "Role" model but you may use whatever you like.
          *
          * The model you want to use as a Role model needs to implement the
-         * `Spatie\Permission\Contracts\Role` contract.
+         * `Spatie\Permission\Contracts\Role` document.
          */
 
         'role' => Spatie\Permission\Models\Role::class,
