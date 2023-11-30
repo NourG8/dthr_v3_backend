@@ -29,11 +29,11 @@ return new class extends Migration
             $table->string('nationality');
             $table->string('phone');
             $table->string('phone_emergency')->nullable();
-            $table->enum('Family_situation',['Single','Married','Divorce','Widow']);
+            $table->enum('family_situation',['Single','Married','Divorce','Widow']);
             $table->integer('nb_children');
             $table->string('level_studies');
             $table->string('specialty');
-            $table->enum('sivp',['Yes','No']);
+            $table->enum('sivp',['Yes','No'])->nullable();
             $table->string('registration');
             $table->string('carte_id')->nullable();
             $table->string('duration_sivp')->nullable();

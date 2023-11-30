@@ -17,7 +17,13 @@ class CompanyController extends Controller
     public function getCompany()
     {
         $companies = Company::all();
-        return $this->successResponse( $companies );
+        return  $companies ;
+    }
+
+    public static function getOneCompany()
+    {
+        $companies = Company::first();
+        return  $companies ;
     }
 
     public function AddCompany(AddCompanyRequest $request)

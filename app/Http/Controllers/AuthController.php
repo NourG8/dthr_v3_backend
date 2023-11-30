@@ -28,10 +28,11 @@ class AuthController extends Controller
         $user->makeVisible('password');
         $permissions = $user->getAllPermissions()->unique('id')->values();
         $user->load(['roles']);
+        $company = CompanyController::getOneCompany();
 
         return $this->successResponse([
             'user' => $user,
-            'permissions' => isset($permissions) ? $permissions : [],
+            'company' => $company,
             'token' => $token,
             'message' => 'login_success'
         ]);
