@@ -47,7 +47,7 @@ class HolidayController extends Controller
             ],
         ];
 
-        $sex = $prefixes[$user['sex']][$user['Family_situation']] ?? null;
+        $sex = $prefixes[$user['sex']][$user['family_situation']] ?? null;
 
         return [$user, $sex, Carbon::now()->year];
     }

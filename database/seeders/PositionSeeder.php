@@ -30,7 +30,7 @@ class PositionSeeder extends Seeder
             ],
             [
                 'job_name' => 'Chef de Projet',
-                'status' => 'Inactive',
+                'status' => 'inactive',
                 'description' => 'Description du chef de projet',
                 'title' => 'M.',
                 
@@ -51,7 +51,7 @@ class PositionSeeder extends Seeder
             ],
             [
                 'job_name' => 'Gérant',
-                'status' => 'Inactive',
+                'status' => 'inactive',
                 'description' => 'Description du gérant',
                 'title' => 'M.',
                 

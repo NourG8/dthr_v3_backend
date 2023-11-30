@@ -12,6 +12,7 @@ class TeamUser extends Model
 
     protected $guarded = [];
     // protected $with = ['user','team'];
+    protected $with = ['team'];
 
     public function team()
     {
