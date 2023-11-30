@@ -80,6 +80,7 @@ class UserController extends Controller
         $user->positions()->create([
             'position_id' => $request->input('position_id'),
             'start_date' => now(),
+            'end_date' => null
         ]);
 
         $user->teams()->create([
@@ -225,10 +226,9 @@ class UserController extends Controller
         return $this->successResponse($user->load('positions', 'teams'));
     }
 
-    public function getTeams_Department(Request $request)
+    public function getTeamsDepartment($id)
     {
-        $teams = Team::where([['status', 'active']])
-            ->whereIn('department_id', $request->ids_dep)->get();
+        $teams = Team::where('status', 'active')->where('department_id', $id)->get();
 
         return $this->successResponse($teams);
     }
@@ -329,8 +329,8 @@ class UserController extends Controller
             $user = $document->user;
 
             $body = str_replace(
-                ['$$last_name$$', '$$first_name$$', '$$email$$', '$$sex$$', '$$date_birth$$', '$$place_birth$$', '$$cin$$', '$$delivery_date_cin$$', '$$delivery_place_cin$$', '$$integration_date$$'],
-                [$user->last_name, $user->first_name, $user->email, $user->sex, $user->date_birth, $user->place_birth, $user->cin, $user->delivery_date_cin, $user->delivery_place_cin, $user->integration_date],
+                ['$$last_name$$', '$$first_name$$', '$$email$$', '$$sex$$', '$$date_birth$$', '$$place_birth$$', '$$cin$$', '$$delivery_date_cin$$', '$$delivery_place_cin$$', '$$integration_date$$' , '$$job_name$$'],
+                [$user->last_name, $user->first_name, $user->email, $user->sex, $user->date_birth, $user->place_birth, $user->cin, $user->delivery_date_cin, $user->delivery_place_cin, $user->integration_date  , $user->positions[0]->position->job_name],
                 $document->document->body
             );
 
@@ -361,7 +361,7 @@ class UserController extends Controller
     public function editContractsToUser(Request $request, $id)
     {
         $userContract  = UserDocument::findOrFail($id);
-        //id doc chnager le nom de la colonne
+    
         $userContract->document_id = $request->input('document_id');
         $userContract->user_id = $request->input('user_id');
         $userContract->start_date = $request->input('start_date');
@@ -404,17 +404,16 @@ class UserController extends Controller
             $user = $document->user;
 
             $body = str_replace(
-                ['$$last_name$$', '$$first_name$$', '$$email$$', '$$sex$$', '$$date_birth$$', '$$place_birth$$', '$$cin$$', '$$delivery_date_cin$$', '$$delivery_place_cin$$', '$$integration_date$$'],
-                [$user->last_name, $user->first_name, $user->email, $user->sex, $user->date_birth, $user->place_birth, $user->cin, $user->delivery_date_cin, $user->delivery_place_cin, $user->integration_date],
+                ['$$last_name$$', '$$first_name$$', '$$email$$', '$$sex$$', '$$date_birth$$', '$$place_birth$$', '$$cin$$', '$$delivery_date_cin$$', '$$delivery_place_cin$$', '$$integration_date$$',  '$$job_name$$'],
+                [$user->last_name, $user->first_name, $user->email, $user->sex, $user->date_birth, $user->place_birth, $user->cin, $user->delivery_date_cin, $user->delivery_place_cin, $user->integration_date , $user->positions[0]->position->job_name],
                 $document->document->body
             );
-            // $body = str_replace('$$delivery_date_cin$$', $user->delivery_date_cin, $body);
-            // $body = str_replace('$$delivery_place_cin$$', $user->delivery_place_cin, $body);
 
             if ($download == "pdf") {
                 $pdf = PDF::loadHTML($body);
                 $filename = $document->document->documentType->name . '_'  . $user->last_name . '_' . $user->first_name . '.pdf';
                 return $pdf->download($filename);
+
             } else if ($download == "word") {
                 $phpWord = new PhpWord();
 
@@ -570,4 +569,54 @@ class UserController extends Controller
 
         return $this->successResponse($documents);
     }
+
+    public function checkUserCin(Request $request)
+    {
+        $cin = $request->input('cin');
+        $cinExiste = User::where('cin', $cin)->exists();
+   
+        return $this->successResponse( $cinExiste);
+    }
+
+    public function checkUserPassport(Request $request)
+    {
+        $num_passport = $request->input('num_passport');
+        $passportExiste = User::where('num_passport', $num_passport)->exists();
+   
+        return $this->successResponse( $passportExiste);
+    }
+
+    public function checkUserEmail(Request $request)
+    {
+        $email = $request->input('email');
+        $emailExiste = User::where('email', $email)->exists();
+   
+        return $this->successResponse($emailExiste);
+    }
+
+    public function checkUserEmailProf(Request $request)
+    {
+        $email_prof = $request->input('email_prof');
+        $emailProfExiste = User::where('email_prof', $email_prof)->exists();
+   
+        return $this->successResponse($emailProfExiste);
+    }
+
+    public function checkUserPhone(Request $request)
+    {
+        $phone = $request->input('phone');
+        $phoneExiste = User::where('phone', $phone)->exists();
+   
+        return $this->successResponse($phoneExiste);
+    }
+
+    public function checkUserPhoneEmergency(Request $request)
+    {
+        $phone_emergency = $request->input('phone_emergency');
+        $phoneEmergencyExiste = User::where('phone_emergency', $phone_emergency)->exists();
+   
+        return $this->successResponse($phoneEmergencyExiste);
+    }
+    
+
 }

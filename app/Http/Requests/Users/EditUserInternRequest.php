@@ -26,7 +26,7 @@ class EditUserInternRequest extends FormRequest
             'first_name' => 'required|string',
             'phone' => 'required|string',
             'address' => 'required|string',
-            'Family_situation' => 'required|string',
+            'family_situation' => 'required|string',
             'nb_children' => 'required|integer',
             'level_studies' => 'required|string',
             'delivery_date_cin' => 'required|date',

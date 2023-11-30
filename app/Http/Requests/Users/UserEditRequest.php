@@ -22,8 +22,8 @@ class UserEditRequest extends FormRequest
      */
     public function rules()
     {
-          $id = $this->route('id'); // Obtenez l'id de la route
-        //   dd($id);
+        $id = $this->route('id'); // Obtenez l'id de la route
+
         return [
             'last_name' => 'required|string',
             'first_name' => 'required|string',
@@ -38,15 +38,15 @@ class UserEditRequest extends FormRequest
             'nationality' => 'required|string',
             'phone' => 'required|string',
             'phone_emergency' => 'nullable|string',
-            'Family_situation' => ['required', Rule::in(['Single', 'Married', 'Divorce', 'Widow'])],
+            'family_situation' => ['required', Rule::in(['Single', 'Married', 'Divorce', 'Widow'])],
             'nb_children' => 'required|integer',
             'level_studies' => 'required|string',
             'specialty' => 'required|string',
-            'sivp' => ['required', Rule::in(['Yes', 'No'])],
+            'sivp' => ['nullable', Rule::in(['Yes', 'No'])],
             'registration' => 'required|string',
             'carte_id' => 'nullable|string',
             'duration_sivp' => 'nullable|string',
-            'cin' => ['nullable', 'integer', Rule::unique('users')->ignore($id)],
+            'cin' => ['nullable', Rule::unique('users')->ignore($id)],
             'num_passport' => ['nullable', 'string', Rule::unique('users')->ignore($id)],
             'delivery_date_cin' => 'nullable|date',
             'delivery_place_cin' => 'nullable|string',
