@@ -22,13 +22,19 @@ class RolesPermissionsController extends Controller
     public function store(Request $request)
     {
         // $this->authorize('store', Role::class);
-
+    
         $validatedData = $request->validate([
             'name' => 'required|unique:roles',
+            'permissions' => 'array',
         ]);
-
+    
         $role = Role::create(['name' => $validatedData['name']]);
-
+    
+        // Attribue les permissions au nouveau rôle s'il y en a
+        isset($validatedData['permissions'])
+            ? $role->syncPermissions(Permission::whereIn('id', $validatedData['permissions'])->pluck('id')->toArray())
+            : null;
+    
         return $this->successResponse([
             'message' => 'role_success',
             'data' => $role
@@ -40,7 +46,7 @@ class RolesPermissionsController extends Controller
         // $this->authorize('show', Role::class);
 
         $role = Role::with('permissions')->findOrFail($id);
-        return $this->successResponse(['data' => $role], 200);
+        return $this->successResponse( $role);
     }
 
     public function update(Request $request, $id)
@@ -49,11 +55,16 @@ class RolesPermissionsController extends Controller
 
         $validatedData = $request->validate([
             'name' => ["required", Rule::unique('roles')->ignore($id)],
+            'permissions' => 'array',
         ]);
 
         $role = Role::findOrFail($id);
         $role->name = $validatedData['name'];
         $role->save();
+
+        if (isset($validatedData['permissions'])) {
+            $role->syncPermissions($validatedData['permissions']);
+        }
 
         return $this->successResponse([
             'message' => 'role_success',
