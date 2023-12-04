@@ -581,7 +581,7 @@ class UserController extends Controller
     public function checkUserPassport(Request $request)
     {
         $num_passport = $request->input('num_passport');
-        $passportExiste = User::where('num_passport', $num_passport)->exists();
+        $passportExiste = User::where('num_passport', $num_passport)->whereNotNull('num_passport')->exists();
    
         return $this->successResponse( $passportExiste);
     }

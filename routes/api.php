@@ -174,20 +174,24 @@ Route::middleware('auth:sanctum')->group(function () {
   Route::group(['prefix' => 'permissions'], function () {
     Route::post('/many', [PermissionsController::class, 'storeMany']);
     Route::get('/', [PermissionsController::class, 'index']);
+    Route::get('/archive', [PermissionsController::class, 'getArchivedPermissions']);
     Route::get('/{id}', [PermissionsController::class, 'show']);
     Route::post('/', [PermissionsController::class, 'store']);
     Route::put('/{id}', [PermissionsController::class, 'update']);
     Route::delete('/{id}', [PermissionsController::class, 'destroy']);
+    Route::put('/restore/{id}', [PermissionsController::class, 'restorePermission']);
   });
 
   // ROLES
   Route::group(['prefix' => 'roles'], function () {
     Route::post('/{id}/permissions', [RolesPermissionsController::class, 'addPermissions']);
     Route::get('/', [RolesPermissionsController::class, 'index']);
+    Route::get('/archive', [RolesPermissionsController::class, 'getArchivedRoles']);
     Route::get('/{id}', [RolesPermissionsController::class, 'show']);
     Route::post('/', [RolesPermissionsController::class, 'store']);
     Route::put('/{id}', [RolesPermissionsController::class, 'update']);
     Route::delete('/{id}', [RolesPermissionsController::class, 'destroy']);
+    Route::put('/restore/{id}', [RolesPermissionsController::class, 'restoreRole']);
   });
 
   // DOCUMENT

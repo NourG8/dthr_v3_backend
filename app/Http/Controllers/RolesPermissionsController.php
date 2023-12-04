@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+// use Spatie\Permission\Models\Role;
+use App\Models\Role;
+use App\Models\Permission;
+// use Spatie\Permission\Models\Permission;
 
 class RolesPermissionsController extends Controller
 {
@@ -74,10 +76,9 @@ class RolesPermissionsController extends Controller
 
     public function destroy($id)
     {
-        // $this->authorize('destroy', Role::class);
-
         $role = Role::findOrFail($id);
-        $role->permissions()->delete();
+
+        $role->permissions()->detach();
         $role->delete();
 
         return $this->successResponse([
@@ -105,6 +106,27 @@ class RolesPermissionsController extends Controller
             'data' => $role
         ], 200);
     }
-
     
+    public function getArchivedRoles()
+    {
+        // $this->authorize('index', Role::class);
+
+        $archivedRoles = Role::with('permissions')->onlyTrashed()->get();
+        return $this->successResponse($archivedRoles);
+    }
+
+    public function restoreRole($id)
+    {
+        $role = Role::withTrashed()->findOrFail($id);
+
+        if ($role->restore()) {
+            return $this->successResponse([
+                'message' => 'Role restored successfully',
+                'data' => $role
+            ], 200);
+        }
+
+        return $this->errorResponse('Role is not archived or restoration failed', 400);
+    }
+
 }
